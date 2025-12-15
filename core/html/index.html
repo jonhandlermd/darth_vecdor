@@ -1,0 +1,115 @@
+
+
+<!--
+  ~ Copyright (c) 2025 Keylog Solutions LLC
+  ~
+  ~ ATTRIBUTION NOTICE: This work was conceived and created by Jonathan A. Handler. Large language model(s) and/or many other resources were used to help create this work. 
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Darth Vecdor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!--------- BEGIN SCRIPTS AND CSS ----------->
+
+  <!-- PREACT Scripts -->
+  <script src="static/external_js/preact.umd.js" defer></script>
+  <script src="static/external_js/hooks.umd.js" defer></script>
+
+  <!-- DARTH VECDOR SCRIPTS -->
+  <script src="static/js/dv.js" defer></script>
+  <!--script src="static/js/dv_progress.js" defer></script-->
+
+  <!-- DARTH VECDOR CSS -->
+  <link rel="stylesheet" href="static/css/dv.css">
+  <link rel="stylesheet" href="static/css/dv_progress.css">
+
+<!--------- END SCRIPTS AND CSS ----------->
+
+</head>
+<body data-theme="dark">
+<nav>
+  <div class="nav-title" onclick="navigateSection('#home')">Darth Vecdor</div>
+  <div class="custom-dropdown">
+    <div id="dropdown-btn" class="dropdown-btn" onclick="toggleDropdown()">Menu ▾</div>
+    <div id="dropdown-menu" class="dropdown-list">
+    </div>
+  </div>
+</nav>
+  <!--<button class="theme-toggle" onclick="toggleTheme()" style="margin: 1rem;">Toggle Theme</button>-->
+<div id="pageLock">
+  <div class="container">
+    <div id="app" class="form-container"></div>
+  </div>
+</div>
+
+<div id="status_area">
+    <div class="status_container">
+        <div class="status_header">Task Progress</div>
+        <div class="task_status" id="taskStatus">
+            <TEXTAREA class="status_textarea" id="status_textarea" rows="10" readonly></TEXTAREA>
+        </div>
+        <div class="spinner" id="spinner"></div>
+
+        <div class="buttons">
+            <button id="cancelButton" onclick="cancelTask();">Cancel Task</button>
+            <button id="statusCloseButton">Close</button>
+        </div>
+  </div>
+</div>
+
+<!--
+<div id="status_area">
+    <div class="task_status" id="taskStatus">Ready</div>
+            <div class="spinner" id="spinner"></div>
+    <div align="right">
+        <button id="cancelButton" onclick="cancelTask();">Cancel Task</button>
+        <button id="statusCloseButton" >Close</button>
+    </div>
+</div>
+-->
+
+<footer>
+      <HR>
+<B>*** ALL USE IS ENTIRELY AT YOUR OWN RISK! ***</B>
+    <P><B><I>There are going to be bugs, design flaws, and other problems in this code and system, maybe bad or dangerous ones. LLMs can hallucinate. Logic can be wrong. Semantic vector manipulations and calculations may mislead. Virtually anything you can or cannot imagine could theoretically go wrong. Read the license.</I></B></P>
+    <P><B> ** THIS CODE SHOULD NOT BE CONSIDERED TO INCLUDE SECURITY OR PRIVACY FEATURES OR FUNCTIONS OR TO BE SECURE OR PRIVATE. YOU ARE RESPONSIBLE TO PROVIDE ANY SUCH FUNCTIONALITY OR FEATURES YOU DEEM APPROPRIATE. TO THE EXTENT THAT IT DOES HAVE SUCH FUNCTIONS OR FEATURES, OR APPEARS TO HAVE THEM, YOU ARE ENTIRELY RESPONSIBLE FOR ENSURING THEIR FUNCTIONALITY, SECURITY, PRIVACY, APPROPRIATENESS, AND EVERY OTHER DESIRED AND/OR REQUIRED ATTRIBUTE ABOUT THEM. ** </B></P>
+<P>
+    <BR>Copyright (c) 2025 Keylog Solutions LLC
+<BR>
+<BR>ATTRIBUTION NOTICE: This work was conceived and created by Jonathan A. Handler. Large language model(s) and/or many other resources were used to help create this work.
+<BR>
+<BR>Licensed under the Apache License, Version 2.0 (the "License");
+<BR>you may not use this file except in compliance with the License.
+<BR>You may obtain a copy of the License at
+<BR>
+<BR>http://www.apache.org/licenses/LICENSE-2.0
+<BR>
+<BR>Unless required by applicable law or agreed to in writing, software
+<BR>distributed under the License is distributed on an "AS IS" BASIS,
+<BR>WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<BR>See the License for the specific language governing permissions and
+<BR>limitations under the License.
+</P>
+      <HR>
+  </footer>
+</body>
+</html>

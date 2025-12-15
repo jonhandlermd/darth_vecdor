@@ -1,0 +1,475 @@
+
+    :root {
+      --bg-color: #111;
+      --text-color: #eee;
+      --border-color: #555;
+      --accent-color: #4db8ff;
+      --subform-bg: rgba(77, 184, 255, 0.05);
+      --box-shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.4);
+      --bg-muted: #1a1a1a; /* <-- Add this for dark mode */
+    }
+
+    [data-theme='light'] {
+      --bg-color: #f8f8f8;
+      --text-color: #222;
+      --border-color: #ccc;
+      --accent-color: #007acc;
+      --subform-bg: rgba(0, 122, 204, 0.08);
+      --box-shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.2);
+      --bg-muted: #f5f5f5; /* <-- Add this for light mode */
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: sans-serif;
+      // font-family: "Eurostile Extended", "Eurostile", "Futura", "Futura PT", "Agency FB", monospace; /* better for log/status text */
+      margin: 0;
+    }
+
+    pre {
+        width:75%;
+        font-family: sans-serif;
+        margin: 10px;
+        align:center;
+        text-align:left;
+        line-height: 1;
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--border-color);
+      padding: 1em;
+    }
+    .nav-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--text-color);
+      text-decoration: none;
+    }
+    #nav-select {
+      font-weight: bold;
+      padding: 0.5em;
+      border-radius: 5px;
+      background: var(--border-color);
+      color: var(--text-color);
+      transition: all 0.2s ease;
+    }
+
+    .static-text {
+      font-weight:bold;
+      font-style: italic;
+    }
+
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 2rem;
+    }
+    h1 {
+      margin-top: 1em;
+    }
+    .home-content {
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      padding: 2em;
+      border-radius: 8px;
+      color: var(--text-color);
+      text-align: left;
+      line-height: 1.6;
+      font-size: 1.2rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    }
+    .form-container form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .form-container label {
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+    gap: 0.5rem; /* bigger internal gap */
+    margin-bottom: 1rem; /* more space between fields */
+    }
+    .form-container input,
+    .form-container select,
+    .form-container textarea {
+      padding: 0.6em;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-size: 1rem;
+    }
+    .form-container .subform {
+      border: 1px dashed var(--border-color);
+      padding: 1rem;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .subform-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .subform-controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .submit-btn, .add-btn, .control-btn {
+      padding: 0.5em 1em;
+      font-size: 0.9rem;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .control-btn.small {
+      padding: 0.3em 0.6em;
+      font-size: 0.8rem;
+    }
+    .collapsed-fields {
+      display: none;
+    }
+    .hidden { display: none; }
+    footer {
+      text-align: left;
+      margin-top: 0px;
+      padding-top:0px;
+      padding-left: 12.5%;
+      padding-right: 12.5%;
+    }
+    .custom-dropdown {
+    position: relative;
+    }
+    .dropdown-btn {
+    padding: 0.5em 1em;
+    background: var(--border-color);
+    border: 1px solid var(--accent-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    cursor: pointer;
+    font-weight: bold;
+    }
+    .dropdown-list {
+    position: absolute;
+    right: 0;
+    top: 2.5em;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 999;
+    display: none;
+    flex-direction: column;
+    min-width: 250px;
+    }
+    .dropdown-list.show {
+    display: flex;
+    }
+    .dropdown-item {
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    }
+    .dropdown-item:last-child {
+    border-bottom: none;
+    }
+    .dropdown-item:hover {
+    background-color: var(--hover-color);
+    }
+    .dropdown-label {
+    font-weight: bold;
+    }
+    .dropdown-desc {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    }
+
+  /* Make main and subform headings stand out */
+  .subform-title {
+    font-weight: bold;
+    background: var(--border-color);
+    color: var(--text-color);
+    padding: 0.4em 0.8em;
+    border-radius: 6px;
+  }
+
+    /* Stronger border around each subform */
+    .subform {
+        border: 2px solid var(--accent-color) !important;
+        background: rgba(77, 184, 255, 0.05); /* faint bluish highlight */
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+
+    /* Optional: add small shadow for even better separation */
+    .subform {
+        box-shadow: var(--box-shadow-soft);
+    }
+
+    .tooltip-text {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 2.2em;
+    left: 0;
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 0.6em;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    z-index: 1000;
+    max-width: 400px;
+    min-width: 200px;
+    font-size: 0.9em;
+    font-weight: normal;
+    box-shadow: var(--box-shadow-soft);
+    transform: translateY(5px); /* small slide down initially */
+    transition: opacity 0.2s ease, transform 0.2s ease; /* fade + slide */
+    will-change: opacity, transform;
+    }
+
+
+    /* === Animations === */
+    @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+    }
+
+    .pulse {
+    animation: pulse 0.25s ease;
+    }
+
+    @keyframes fade-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(5px); /* ONLY slide down */
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0); /* Back to normal position */
+    }
+    }
+
+    /* Optional: replace tooltip transition with animation if you want */
+    .tooltip-text.show {
+    animation: fade-slide-in 0.2s ease;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    }
+
+.config-selector-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.5rem 0 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--bg-muted, #f5f5f5);
+  border: 1px solid var(--accent-color);
+}
+
+.config-selector-box label {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+
+/* CHECKLIST BOX AND ACCUMULATOR CSS */
+/* === Checklist === */
+.multicheckbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  background-color: var(--bg-muted, #f9f9f9);
+  margin: 0.5rem 0 1.5rem 0;
+}
+
+.multicheckbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* === Accumulator === */
+.accumulator-listbox {
+  flex: 1;
+  border: 1px solid #aaa;
+  overflow-y: auto;
+  overflow-x: auto;       /* enable horizontal scroll */
+  white-space: nowrap;    /* prevent wrapping */
+  padding: 0.25rem;
+  min-height: 10rem;
+  max-height: 15rem;
+  background: #fff;
+}
+
+.accumulator-option {
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  overflow-x: hidden;
+  display: block;
+}
+
+.accumulator-option:hover {
+  background-color: #eef;
+}
+
+.accumulator-option.selected {
+  background-color: #cce;
+  font-weight: bold;
+}
+
+.accumulator-wrapper.horizontal {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.accumulator-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+}
+
+.accumulator-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.accumulator-actions button {
+  width: 8rem;  /* Or use 'max-content' if you want it auto-size but consistent */
+  min-width: 8rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.accumulator-title {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: #555;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+
+/* Menu container */
+#dropdown-menu {
+  display: none;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: absolute;
+  background-color: var(--bg-color, #fff);
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 250px;
+  padding: 0.5rem;
+}
+
+#dropdown-menu.show {
+  display: flex;
+}
+
+/* All menu items (including submenu items) */
+.menu-item {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background-color: var(--menu-bg, #f5f5f5);
+  color: var(--menu-text, #111);
+  transition: background-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background-color: var(--menu-hover-bg, #e2e2e2);
+}
+
+/* Menu label (title) */
+.menu-label {
+  font-weight: bold;
+  user-select: none;
+}
+
+/* Menu description */
+.menu-desc {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-top: 0.2rem;
+  user-select: none;
+}
+
+/* Items with children get arrow indicator */
+.menu-item.has-children > .menu-label::after {
+  content: "▶";
+  float: right;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+  color: var(--accent-color, #4db8ff);
+  transition: transform 0.3s ease;
+}
+
+.menu-item.has-children.expanded > .menu-label::after {
+  transform: rotate(90deg);
+}
+
+/* Submenu items appear flat, slightly indented */
+.submenu-item {
+  margin-left: 1rem;
+}
+
+/* Hide submenu items by default */
+.hidden {
+  display: none !important;
+}
+
+/* Optional dark theme overrides (example using class on body) */
+body.dark #dropdown-menu {
+  background-color: #222;
+  border-color: #444;
+}
+
+body.dark .menu-item {
+  background-color: #333;
+  color: #eee;
+}
+
+body.dark .menu-item:hover {
+  background-color: #444;
+}
+
+body.dark .menu-desc {
+  opacity: 0.7;
+}
+
+body.dark .menu-item.has-children > .menu-label::after {
+  color: #76c9ff;
+}
