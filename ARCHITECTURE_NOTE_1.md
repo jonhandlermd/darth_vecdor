@@ -1,5 +1,5 @@
 # Prologue
-I had a "conversation" with ChatGPT about my code. I had asked it a question, and it thought that I was not "doing it right" and therefore had incurred some risks. When I described those design decisions as intentional, the "light bulb" or "aha" moment seemed to occur for ChatGPT, and it declared that I was using a thoughtful pattern akin to the "Active Record" from Ruby on Rails. I had never heard of Active Record, but was happy to know someone else had done something similar. I asked ChatGPT to write up an explanation of its understanding of my design philosophy and approach here. The following is what it wrote. I hope it's adequately accurate and helpful.
+I (Jonathan Handler) had a "conversation" with ChatGPT about my code. I had asked it a question, and it thought that I was not "doing it right" and therefore had incurred some risks. When I described those design decisions as intentional, the "light bulb" or "aha" moment seemed to occur for ChatGPT, and it declared that I was using a thoughtful pattern akin to the "Active Record" from Ruby on Rails. I had never heard of Active Record, but was happy to know someone else had done something similar. I asked ChatGPT to write up an explanation of its understanding of my design philosophy and approach here. The following is what it wrote (with minor fixes or clarifications made by me). I hope it's adequately accurate and helpful.
 
 # Background and Design Intent
 
@@ -19,7 +19,7 @@ Through explanation of design goals and concrete behavior, it became evident tha
 - ORM objects were treated as stable representations of persisted state
 - The design strongly resembled an **Active Record-style mental model**, rather than SQLAlchemy’s default Unit-of-Work approach
 
-Crucially, this model was not adopted reactively or as a workaround. It had already been implemented because it aligned better with the author’s goals: reducing cognitive overhead, preventing forgotten persistence, minimizing session lifetime risks, and making object creation an explicit act with immediate, durable effect.
+Crucially, this model was not adopted reactively or as a workaround. It had already been implemented because it aligned better with the author’s (Jonathan Handler's) goals: reducing cognitive overhead, preventing forgotten persistence, minimizing session lifetime risks, and making object creation an explicit act with immediate, durable effect.
 
 Once this intent was understood, it became clear that the codebase is not “misusing” SQLAlchemy, but rather **using it in a consciously different mode**—one that prioritizes clarity, safety, and correctness over implicit state management and deferred writes.
 
