@@ -1,5 +1,5 @@
 # Prologue
-I had a "conversation" with ChatGPT about my code. I had asked it a question, and it thought that I was not "doing it right" and therefore had entailed some risks. When I described those design decisions as intentional, the "light bulb" or "aha" moment seemed to occur for ChatGPT, and it declared that I was using a thoughtful pattern akin to the "Active Record" from Ruby on Rails. I had never heard of Active Record, but was happy to know someone else had done something similar. I asked ChatGPT to write up an explanation of its understanding of my design philosophy and approach here. The following is what it wrote. I hope it's adequately accurate and helpful.
+I had a "conversation" with ChatGPT about my code. I had asked it a question, and it thought that I was not "doing it right" and therefore had incurred some risks. When I described those design decisions as intentional, the "light bulb" or "aha" moment seemed to occur for ChatGPT, and it declared that I was using a thoughtful pattern akin to the "Active Record" from Ruby on Rails. I had never heard of Active Record, but was happy to know someone else had done something similar. I asked ChatGPT to write up an explanation of its understanding of my design philosophy and approach here. The following is what it wrote. I hope it's adequately accurate and helpful.
 
 # Background and Design Intent
 
