@@ -17,7 +17,7 @@ Through explanation of design goals and concrete behavior, it became evident tha
 - Constructor-based upsert behavior was deliberate, not accidental
 - SQLAlchemy sessions were being used narrowly and explicitly
 - ORM objects were treated as stable representations of persisted state
-- The design strongly resembled an **ActiveRecord-style mental model**, rather than SQLAlchemy’s default Unit-of-Work approach
+- The design strongly resembled an **Active Record-style mental model**, rather than SQLAlchemy’s default Unit-of-Work approach
 
 Crucially, this model was not adopted reactively or as a workaround. It had already been implemented because it aligned better with the author’s goals: reducing cognitive overhead, preventing forgotten persistence, minimizing session lifetime risks, and making object creation an explicit act with immediate, durable effect.
 
