@@ -13,6 +13,10 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+import keyring as kr
+
+# For secrets, like passwords, keys, or anything else, use whatever secure approach is best. Do not assume
+# the code shown here is necessarily the best approach.
 
 #### Debugging on or of
 d = False
@@ -51,4 +55,6 @@ sys_title = 'Darth Vecder'
 # Separator string
 sep = '_sep_'
 
-app_secret_key = 'my_super-secret-key_0110' # replace with your own made up key, or put in keyring or something else.
+# Used to sign session ids. Use whatever secure way to do this that is best. Do not assume
+# this is necessarily the best approach.
+app_secret_key = kr.get_password('dv_app_secret_key', 'dv')

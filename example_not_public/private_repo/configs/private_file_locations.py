@@ -17,6 +17,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+
+# For secrets, like passwords, keys, or anything else, use whatever secure approach is best. Do not assume
+# the code shown here is necessarily the best approach.
+
 ##########################
 # Automatically identify base path
 ##########################
