@@ -17,7 +17,7 @@
 #  limitations under the License.
 
 # For secrets, like passwords, keys, or anything else, use whatever secure approach is best. Do not assume
-# the code shown here is necessarily the best approach.
+# the code shown here is necessarily the best approach or code.
 # Example connection string, but remember, every DB seems to have a different connection string!
 # connection_string = f'Driver={driver};DBCNAME={host};PORT={port};DATABASE={database};UID={user};PWD={password};{other}'
 connection_string = ''

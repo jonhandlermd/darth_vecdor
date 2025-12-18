@@ -18,6 +18,6 @@
 import keyring as kr
 
 # For secrets, like passwords, keys, or anything else, use whatever secure approach is best. Do not assume
-# the code shown here is necessarily the best approach.
+# the code shown here is necessarily the best approach or code.
 
 hugging_face_token = kr.get_password('dv_huggingface_key', 'dv')

@@ -17,7 +17,7 @@
 from app_source.public_repo.core.code.interactors.support.llm_config_mapper import llm_config_mapper_class as lcmc
 
 # For secrets, like passwords, keys, or anything else, use whatever secure approach is best. Do not assume
-# the code shown here is necessarily the best approach.
+# the code shown here is necessarily the best approach or code.
 
 llm_config_maps = {}
 llm_config_maps['open_ai_4o_mini'] = lcmc(

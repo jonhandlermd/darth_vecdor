@@ -40,7 +40,7 @@ import openai
 import keyring as kr
 
 # For secrets, like passwords, keys, or anything else, use whatever secure approach is best. Do not assume
-# the code shown here is necessarily the best approach.
+# the code shown here is necessarily the best approach or code.
 
 # This module contains things to be passed to the LLM execution class which will pass it on to an
 # LLM Plugin Module.

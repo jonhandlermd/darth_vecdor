@@ -49,6 +49,9 @@ with app.app_context():
     # Register the Flask blueprint that provides all our endpoints
     app.register_blueprint(endpoints.endpoints)
 
+# ADJUST THIS CODE AND OR THE app.run PARAMS AS APPROPRIATE,
+# OR MOVE TO RUNNING FROM COMMAND LINE, OR DO OTHER APPROACH OR CHANGE AS
+# APPROPRIATE.
 if __name__ == '__main__':
     # TODO: Remove debug=True, fix allow_unsafe_werkzeug
     app.run(debug=True, port=5001)

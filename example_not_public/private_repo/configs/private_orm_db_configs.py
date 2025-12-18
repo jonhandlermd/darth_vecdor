@@ -19,7 +19,7 @@ import keyring as kr
 import app_source.not_public.private_repo.configs.private_file_locations as fl
 
 # For secrets, like passwords, keys, or anything else, use whatever secure approach is best. Do not assume
-# the code shown here is necessarily the best approach.
+# the code shown here is necessarily the best approach or code.
 _host = 'localhost'
 _port = '5432'
 _database = 'darth_vecdor'  # reportedly, default in Postgresql is postgres
