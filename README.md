@@ -4,6 +4,12 @@ https://zeroeffectors.com/2025/12/15/darth-vecdor-a-free-open-source-platform-to
 Please adhere to the terms of the license (see below and/or the LICENSE.md file) and be aware of the condition to include an attribution notice as apporpriate per the license. 
 <P>
 If you use this work in your research or reference it in a publication, please cite this GitHub repository, and/or, when available, cite the link that will be provided here for an academic paper on the topic.
+
+<B>Contributing</B>
+
+This repository is public for visibility. Pull requests are welcome, but not guaranteed to be merged. I may or may not have the time or inclination for them.
+If you want to contribute, please consider opening an issue first to discuss significant changes.
+
 <HR>
 <B>*** ALL USE IS ENTIRELY AT YOUR OWN RISK! ***</B>
 <P>
