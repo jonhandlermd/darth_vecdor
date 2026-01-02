@@ -104,8 +104,8 @@ def populate_custom_table(
         ctg_code_selector:str,
         ctg_dest_table:str,
         ctg_query:str,
-        ctg_code_placeholder:str = 'code',
-        ctg_dest_code_field:str = 'code'
+        ctg_code_placeholder:str = '',
+        ctg_dest_code_field:str = ''
         ):
     tskm.emit_status("Making custom table_generator object", print_also=print_also)
     custom_table_generator_obj = custom_table_generators_class(

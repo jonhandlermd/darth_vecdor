@@ -1260,8 +1260,8 @@ class custom_table_generators_class(base_table_class):
                  ctg_code_selector:str,
                  ctg_dest_table:str,
                  ctg_query:str,
-                 ctg_code_placeholder:str = 'code',
-                 ctg_dest_code_field:str='code',
+                 ctg_code_placeholder:str = '',
+                 ctg_dest_code_field:str='',
                  datetime=None
                  ):
         self.name = name
@@ -2024,7 +2024,7 @@ def populate_custom_table(enhanced_db_obj:enhanced_db_class, ctg_obj:custom_tabl
     # We only want to make a create table if not exists query
     # if that's not already part of the submitted query.
     # Before separator must be the create table if not exists query.
-    # After teh separator must be the query that we will use to insert.
+    # After the separator must be the query that we will use to insert.
     dv_query_separator = odc.dv_query_separator
     orig_queries = ctg_obj.ctg_query.split(dv_query_separator)
     # Now get rid of anything that is just white space
@@ -2047,25 +2047,44 @@ def populate_custom_table(enhanced_db_obj:enhanced_db_class, ctg_obj:custom_tabl
     # If only one (because there is no separator) this will be that one, as desired.
     select_query = queries[-1]
 
+    # If we did not get either both or neither of ctg_dest_code_field and , then error.
+    if (ctg_obj.ctg_dest_code_field or ctg_obj.ctg_code_placeholder) and not (ctg_obj.ctg_dest_code_field and ctg_obj.ctg_code_placeholder):
+        msg = f"FAILED populate_custom_table get codes to process because must either get both or neither of  code placeholder and destination code field -- cannot get only one of those two."
+        debug.log(__file__, msg)
+        tskm.emit_status(msg, print_also=gl_d)
+        raise Exception(msg)
+
+    # If we got a ctg_obj.ctg_code_placeholder but do not find it in the query, then error.
+    if ctg_obj.ctg_code_placeholder and not ':' + ctg_obj.ctg_code_placeholder in select_query:
+        msg = f"FAILED populate_custom_table get codes to process because got neither code placeholder nor destination code field -- must get either both or at least code placeholder (if doing batch query)."
+        debug.log(__file__, msg)
+        tskm.emit_status(msg, print_also=gl_d)
+        raise Exception(msg)
+
     # Long and weird subquery names so it's almost certainly unique (not likely found elsewhere in the query)
     probably_unique_subquery_name = """sq_9832942348901273406665663894_dv"""
     probably_unique_subquery_explanation = """-- long and weird subquery name so it's almost certainly unique (not likely found elsewhere in the query by coincidence)"""
     probably_unique_subquery_snippet = f"{probably_unique_subquery_name} {probably_unique_subquery_explanation}"
 
-    # If we got no setup queries, then make one.
-    if not setup_queries:
-        setup_queries = [f"""
+    probably_unique_exist_subquery_name = 'dv_665368727728894991'
+
+    # Make a create table query to ensure table exists before we try to populate it.
+    create_table_query = f"""
 CREATE TABLE IF NOT EXISTS {ctg_obj.ctg_dest_table} AS
 SELECT * FROM
 (
 {ctg_obj.ctg_query}
 ) {probably_unique_subquery_snippet}
 WHERE 1 = 0
-        """]
+        """
+    # Make he create table query the first one in setup queries
+    setup_queries.insert(0, create_table_query)
 
     # Run setup queries sequentially
-    # This must be here
-    query_params = {ctg_obj.ctg_code_placeholder: None}
+    if ctg_obj.ctg_code_placeholder:
+        query_params = {ctg_obj.ctg_code_placeholder: None}
+    else:
+        query_params = {}
     for setup_query in setup_queries:
         success = enhanced_db_obj.do_no_result_query(setup_query, query_params)
         if not success:
@@ -2074,6 +2093,40 @@ WHERE 1 = 0
             tskm.emit_status(msg, print_also=gl_d)
             raise Exception(msg)
 
+    # If we got neither a ctg_dest_code_field nor a ctg_obj.ctg_code_placeholder,
+    # then we are doing a batch.
+    if not ctg_obj.ctg_dest_code_field and not ctg_obj.ctg_code_placeholder:
+        insert_query = f"""
+INSERT INTO {ctg_obj.ctg_dest_table}
+    SELECT * FROM
+    (
+    {select_query}
+    ) {probably_unique_subquery_snippet}
+
+                """
+        # Set up query params
+        query_params = {}
+        debug.debug(f"Begin batch populating custom table: {ctg_obj.ctg_dest_table}.", d=d)
+        check_success, change_count = enhanced_db_obj.do_no_result_query_with_change_count(insert_query, query_params)
+        '''
+        print(insert_query)
+        print(check_success)
+        print(query_params)
+        exit()
+        '''
+        if not check_success:
+            msg = f"FAILED populate_custom_table: {ctg_obj.ctg_dest_table}! {check_success}"
+            debug.log(__file__, msg)
+            tskm.emit_status(msg, print_also=d)
+            return
+        if change_count < 1:
+            debug.debug(f"No rows inserted by query to populate custom table {ctg_obj.ctg_dest_table}", d=d)
+
+        # All done!
+        return
+
+
+    # If we get here, then we are processing code-by-code (one code at a time, not batch).
     # Now get codes to process.
     results = get_codes_via_selector(enhanced_db_obj, ctg_obj.ctg_code_selector, ctg_obj.ctg_code_selector_type)
 
@@ -2086,7 +2139,6 @@ WHERE {ctg_obj.ctg_dest_code_field} = :{ctg_obj.ctg_code_placeholder}
 LIMIT 1
         """
 
-    probably_unique_exist_subquery_name = 'dv_665368727728894991'
     insert_query = f"""
 INSERT INTO {ctg_obj.ctg_dest_table}
     SELECT * FROM

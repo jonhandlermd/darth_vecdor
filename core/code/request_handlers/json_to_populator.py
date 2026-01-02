@@ -114,8 +114,8 @@ def json_loaded_obj_to_custom_table_generator(obj_loaded_from_json):
     bobj = copy.deepcopy(obj_loaded_from_json)
 
     # If needed (i.e. because no value provided), convert to default values
-    ctg_dest_code_field = convert_to_default_prn(bobj, 'ctg_dest_code_field','code')
-    ctg_code_placeholder = convert_to_default_prn(bobj, 'ctg_code_placeholder','code')
+    ctg_dest_code_field = convert_to_default_prn(bobj, 'ctg_dest_code_field','')
+    ctg_code_placeholder = convert_to_default_prn(bobj, 'ctg_code_placeholder','')
 
     # Now populate object
     base_name = f"{bobj['name']}_v{bobj['ctg_version']}"

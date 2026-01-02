@@ -244,6 +244,7 @@ async function postWithContext(url, orig_payload = {}) {
         },
     "Terminology Populator": {
         type: "form",
+        formKey: "terminology_populator",
         formTitle: "Terminology Populator",
         parent: "Functions",
 
@@ -259,6 +260,7 @@ async function postWithContext(url, orig_payload = {}) {
         },
     "Code Set Populator": {
         type: "form",
+        formKey: "code_set_populator",
         formTitle: "Code Set Populator",
         parent: "Functions",
 
@@ -276,6 +278,7 @@ async function postWithContext(url, orig_payload = {}) {
         },
     "Relationship Populator": {
         type: "form",
+        formKey: "relationship_populator",
         formTitle: "Relationship Set",
         parent: "Functions",
 
@@ -390,6 +393,7 @@ async function postWithContext(url, orig_payload = {}) {
 
     "Relationship String to Code Matcher": {
         type: "form",
+        formKey: "relationship_string_to_code_matcher",
         formTitle: "Relationship String to Code Matcher",
         parent: "Functions",
 
@@ -428,6 +432,7 @@ async function postWithContext(url, orig_payload = {}) {
 
     "Custom Table Populator": {
         type: "form",
+        formKey: "custom_table_populator",
         formTitle: "Custom Table Populator",
         parent: "Functions",
 
@@ -450,7 +455,7 @@ async function postWithContext(url, orig_payload = {}) {
                     { label: "Query", value: "query" }
                 ],
                 default: 'code_set',
-                help: 'What should be used to choose the select the codes for which the custom table will be generated.'
+                help: 'What should be used to choose the select the codes for which the custom table will be generated. If you do not enter a code placeholder value and destionation code field below, then the value of this field will be ignored and the query will be run as a batch insert query, not one insert query per code.'
             },
             {
                 name: 'ctg_code_selector',
@@ -464,13 +469,13 @@ async function postWithContext(url, orig_payload = {}) {
                     }
                 },
                 default: '',
-                help: 'The terminology name, code set name, or query to use to get the codes. If you selected "Code Set" as your Code Selector Type above but see no code sets in the dropdown here, then you will have to create and populate one first -- available from the menu at the top right. Simiarly, you will have to populate a terminology if you have not done so already but would like your code selector to use a terminology.'
+                help: 'The terminology name, code set name, or query to use to get the codes. If you selected "Code Set" as your Code Selector Type above but see no code sets in the dropdown here, then you will have to create and populate one first -- available from the menu at the top right. Simiarly, you will have to populate a terminology if you have not done so already but would like your code selector to use a terminology. If you do not enter a code placeholder value and destionation code field below, then the value of this field will be ignored and the query will be run as a batch insert query, not one insert query per code.'
             },
 
             { name: 'ctg_dest_table', label: 'Destinaton Schema and Table', type: 'text', default: 'custom_generated_tables.my_custom_table_name', help: 'The destination table (with associated schema) to be populated.' },
             { name: 'ctg_query', label: 'SQL Query', type: 'textarea', default: 'SELECT codes.code, LENGTH(codes.code) AS code_length, mci.code_importance FROM dv_objs.codes codes INNER JOIN source_schema.more_code_info mci ON codes.code = mci.code WHERE codes.code = :code', help: 'The SELECT query to be used to populate the table. It should contain a parameter placeholder where the terminology code or code set code will be substitued in. That placeholder should start with a colon (as in the example query). You can use any word/term (no spaces or characters other than letters, numbers, and underscore) for your placeholder. You will tell the system what is that placeholder in the Code Placeholder entry below (include the placeholder text without the colon). The system will wrap your select query in a CREATE TABLE IF NOT EXISTS in order to auto-generate the table if it is not already present. However, you may wish to have your own CREATE TABLE IF NOT EXISTS query. You may also wish to do other things, like CREATE INDEX IF NOT EXISTS statmements. If so, put all your setup queries first (create table, create index, etc.), then put your select query last. Separate each query with your configured query separator (default is <dv_query_separator>). Do not end any queries with a semicolon. Do not add another query separator at the end of your last query or before your first one. If you only have the one select query, you do not need a query separator. For populating the table, the system will automatically wrap your select query into an INSERT INTO table query, substituting in each code from your code selector, one at a time, running the query once per code.'},
-            { name: 'ctg_code_placeholder', label: 'Code Placeholder', type: 'text', default: 'code', help: 'Placeholder in your query that will be substituted with each code returned by your code selector (one code per query). Do not include the colon (":") at the beginning. If you leave this blank, default is "code".' },
-            { name: 'ctg_dest_code_field', label: 'Destination Code Field Name', type: 'text', default: 'code', help: 'In the destionation table to be populated, what is the name of the field that will be populated with the code from the code selector. If you leave this blank, default is "code".' },
+            { name: 'ctg_code_placeholder', label: 'Code Placeholder', type: 'text', default: 'code', help: 'Placeholder in your query that will be substituted with each code returned by your code selector (one code per query). Do not include the colon (":") at the beginning. If you leave both Code Placeholder and Destination Code Field blank, the query will be run as a single batch insert, not one insert query per code.' },
+            { name: 'ctg_dest_code_field', label: 'Destination Code Field Name', type: 'text', default: 'code', help: 'In the destionation table to be populated, what is the name of the field that will be populated with the code from the code selector. If you leave both Code Placeholder and Destination Code Field blank, the query will be run as a single batch insert, not one insert query per code.' },
             ]
         },
 
@@ -482,7 +487,7 @@ async function postWithContext(url, orig_payload = {}) {
     "Contributors": {
         type: "page",
         parent: "About",
-        content: "<B>CONTRIBUTORS</B><p>Darth Vecdor was conceived and created by Jonathan A. Handler. Large language models (mostly CHatGPT) and many other resources were used to help create this project. As the owner of this software, Keylog Solutions LLC is proud to offer Darth Vecdor as an open source project -- please see the associated license. This project depends on many brilliant and innovative  technologies (software, hardware, and more) created, implemented, deployed, and managed by many other people. This project is a tribute to all those who have contributed to the underlying math, engineering, technology, and science that made Darth Vecdor possible.</p>"
+        content: "<B>CONTRIBUTORS</B><p>Darth Vecdor was conceived and created by Jonathan A. Handler. Large language models (mostly ChatGPT) and many other resources were used to help create this project. As the owner of this software, Keylog Solutions LLC is proud to offer Darth Vecdor as an open source project -- please see the associated license. This project depends on many brilliant and innovative  technologies (software, hardware, and more) created, implemented, deployed, and managed by many other people. This project is a tribute to all those who have contributed to the underlying math, engineering, technology, and science that made Darth Vecdor possible.</p>"
         },
 
     "USE IS AT YOUR OWN RISK - PLEASE READ": {
@@ -679,6 +684,9 @@ function DarthVecdorForm({ config }) {
   const [formKey, setFormKey] = useState(0);
   const [dynamicDropdowns, setDynamicDropdowns] = useState({});
 
+  // For form input from file
+  let fileInputEl = null;
+
 
   /* Automating getting config options for dropdown from server as needed */
   const [configOptions, setConfigOptions] = useState([]);
@@ -718,6 +726,110 @@ function DarthVecdorForm({ config }) {
     setCollapsedIndex([]);
     setMainCollapsed(false);
   };
+
+
+// EXPORT current form state
+const exportFormToJson = () => {
+  const payload = {
+    ...mainForm,
+    rels: subforms,
+    exportTime: new Date().toISOString(),
+    formKey: config.formKey,
+    formTitle: config.formTitle
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${config.formTitle || 'form'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+
+const importFormFromJson = (file, fileInputEl) => {
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    let parsed;
+    try {
+      parsed = JSON.parse(e.target.result);
+    } catch (err) {
+      alert('Invalid JSON file');
+      console.error(err);
+      if (fileInputEl) fileInputEl.value = '';
+      return;
+    }
+
+    // Check formKey
+    if (parsed.formKey !== config.formKey) {
+      const importedTitle = Object.values(appConfig)
+        .find(cfg => cfg.formKey === parsed.formKey)?.formTitle || 'unknown';
+
+           alert(
+            `CANNOT IMPORT YOUR FILE.
+=====================
+CAUSE OF THE PROBLEM:
+The currently showing form is: "${config.formTitle}"
+However, the import file is intended for form: "${importedTitle}"
+=====================
+SOLUTION:
+1) Go to the menu.
+2) Select "${importedTitle}" and retry the import.
+=====================`
+          );
+      if (fileInputEl) fileInputEl.value = '';
+      return;
+    }
+
+    // Track failed keys
+    const failedKeys = {};
+
+    // Attempt to load each key individually into live form objects
+    Object.keys(parsed).forEach(key => {
+      if (key === 'exportedAt' || key === 'formKey') return;
+
+      try {
+        if (key === 'rels') {
+          if (Array.isArray(subforms)) {
+            subforms.length = 0;
+            if (Array.isArray(parsed.rels)) subforms.push(...parsed.rels);
+          } else {
+            failedKeys[key] = '"rels" skipped: subforms missing or not an array';
+          }
+        } else {
+          // Let the old loader handle most keys (mainForm)
+          if (mainForm) mainForm[key] = parsed[key];
+          else failedKeys[key] = 'mainForm missing';
+        }
+      } catch (err) {
+        failedKeys[key] = err.message || String(err);
+      }
+    });
+
+    // Use the original loader to ensure everything else works
+    try {
+      load_form_from_json(parsed); // 🔒 scoped to this form instance
+    } catch (err) {
+      failedKeys['_load_form_from_json'] = err.message || String(err);
+    }
+
+    // Alert failures if any
+    if (Object.keys(failedKeys).length > 0) {
+      alert(
+        `Some keys failed to import for form "${config.formTitle}":\n` +
+        JSON.stringify(failedKeys, null, 2)
+      );
+    }
+
+    // Reset file input so retry works
+    if (fileInputEl) fileInputEl.value = '';
+  };
+
+  reader.readAsText(file);
+};
 
 
       // Top-level config selector
@@ -1255,31 +1367,64 @@ const renderField = (f, value, onChange) => {
 }
 };
 
-    const renderConfigSelectorDropdown = () => {
-      return h('div', { class: 'config-selector-box' },
-        h('label', {}, 'Select Previously Made Configuration (if any)'),
-        h('select', {
-          value: selectedConfig,
-          onInput: async e => {
-            const selected = e.target.value;
-            setSelectedConfig(selected);
-            if (selected && config?.configLoadUrl) {
-              try {
-                const payload = await getWithContext(config.configLoadUrl, { id: selected });
-                load_form_from_json(payload);
-              } catch (err) {
-                console.error('Failed to load config payload:', err);
-              }
+const renderConfigSelectorDropdown = () => {
+  return h('div', { class: 'config-selector-wrapper' }, [
+
+    h('div', { class: 'config-selector-box' },
+      h('label', {}, 'Database-Stored Configurations: Select to Load'),
+      h('select', {
+        value: selectedConfig,
+        onInput: async e => {
+          const selected = e.target.value;
+          setSelectedConfig(selected);
+          if (selected && config?.configLoadUrl) {
+            try {
+              const payload = await getWithContext(
+                config.configLoadUrl,
+                { id: selected }
+              );
+              load_form_from_json(payload);
+            } catch (err) {
+              console.error('Failed to load config payload:', err);
             }
           }
-        },
-          h('option', { value: '' }, '-- Choose --'),
-          configOptions.map(opt =>
-            h('option', { value: opt.id }, opt.label)
-          )
+        }
+      },
+        h('option', { value: '' }, '-- Choose --'),
+        configOptions.map(opt =>
+          h('option', { value: opt.id }, opt.label)
         )
-      );
-    };
+      )
+    ),
+
+    h('div', { class: 'config-selector-box' },
+      h('label', {}, 'File-Stored Configurations: Import and Export'),
+      h('div', {style: 'display: flex; gap: 0.5rem; margin-bottom: 0.25rem;'},
+      h('button', {
+        type: 'button',
+        class: 'control-btn',
+        style: 'flex: 1;',  // take up roughly half each
+        onClick: () => {
+          if (!fileInputEl) {
+            console.error('File input not mounted');
+            return;
+          }
+          fileInputEl.click();
+        }
+      }, 'Import Configs from File'),
+
+      h('button', {
+        type: 'button',
+        class: 'control-btn',
+        style: 'flex: 1;',  // take up roughly half each
+        onClick: exportFormToJson
+      }, 'Export Configs to File')
+    )
+    )
+
+  ]);
+};
+
 const includeConfigSelector = !!config.configListUrl;
 
 const configSelectorField = {
@@ -1294,6 +1439,21 @@ const allMainFields = includeConfigSelector
 
 
     return h('form', { onSubmit: handleJsonnedFormSubmit, key: formKey },
+
+    // Next input is for form importing
+    h('input', {
+      type: 'file',
+      accept: 'application/json',
+      style: 'display: none;',
+      ref: el => { fileInputEl = el },
+      onChange: e => {
+        importFormFromJson(e.target.files[0]);
+        // Reset the input so the same file can be re-imported
+        e.target.value = '';
+        }
+    }),
+
+
 
         h('div', { class: 'subform', style: 'border: 2px solid var(--accent-color);' },
         h('div', { class: 'subform-header' },
@@ -1383,9 +1543,9 @@ const allMainFields = includeConfigSelector
         )
         )
         ],
-        h('div', { style: 'display: flex; gap: 1rem; justify-content: flex-start;' },
-        h('button', { type: 'submit', class: 'submit-btn' }, 'Submit')
-            )
+        h('div', { style: 'display: flex; gap: 1rem; justify-content: flex-end' },
+            h('button', { type: 'submit', class: 'submit-btn' }, 'Submit')
+        )
     );
     }
 /////////////////// END FUNCTIONS FOR THE PAGE SPECIFICALLY RELATED TO THE FORM //////////////////////
