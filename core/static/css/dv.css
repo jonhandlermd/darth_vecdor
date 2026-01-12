@@ -473,3 +473,32 @@ body.dark .menu-desc {
 body.dark .menu-item.has-children > .menu-label::after {
   color: #76c9ff;
 }
+
+
+.dynamic-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+
+.dynamic-table th,
+.dynamic-table td {
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dynamic-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.dynamic-table tr:nth-child(even) td {
+  background-color: #fafafa;
+}
+
+.dynamic-table tr:hover td {
+  background-color: #f0f7ff;
+}
+

@@ -241,6 +241,26 @@ def populate_code_set_matches():
     debug.debug("Got to populate code set matches", d=g_d)
     return launch_trackable_populator('code_set_match_populator', 'populate_rel_code_matches')
 
+# /////////// QUERY HELPER ITEMS ////////////////
+@endpoints.route('/get_embedder_info', methods = g_allowed_request_methods)
+def get_embedder_info():
+    enhanced_db_obj = set_up_db()
+    results = felg.get_embedder_info(enhanced_db_obj=enhanced_db_obj)
+    return wru.concoct_response('', results)
+
+@endpoints.route('/get_rp_info', methods = g_allowed_request_methods)
+def get_rp_info():
+    enhanced_db_obj = set_up_db()
+    results = felg.get_rp_info(enhanced_db_obj=enhanced_db_obj)
+    return wru.concoct_response('', results)
+
+@endpoints.route('/get_rcmp_info', methods = g_allowed_request_methods)
+def get_rcmp_info():
+    enhanced_db_obj = set_up_db()
+    results = felg.get_rcmp_info(enhanced_db_obj=enhanced_db_obj)
+    return wru.concoct_response('', results)
+
+
 # ////////// OTHER FRONT END ITEMS //////////////
 @endpoints.route('/get_expansion_styles', methods = g_allowed_request_methods)
 def get_expansion_styles():

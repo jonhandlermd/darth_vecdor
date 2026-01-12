@@ -147,6 +147,19 @@ function updateStatus(message, isError = false) {
 
 //////// START Helper utilities /////////
 
+function manage_json_resp(json) {
+    if (!json || typeof json !== 'object') {
+      throw new Error("Invalid JSON");
+    }
+
+    if (json.status?.toLowerCase().startsWith("error")) {
+      throw new Error(json.status);
+    }
+
+    const data = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
+    return data
+    }
+
 async function getWithContext(baseUrl, orig_payload = {}) {
   // We JSON stringify the main payload.
   // It will be DOUBLE stringified if it's a form submission where we are submitting the form itself as a JSON string.
@@ -159,6 +172,7 @@ async function getWithContext(baseUrl, orig_payload = {}) {
     const res = await fetch(fullUrl);
     const json = await res.json();
 
+    /*
     if (!json || typeof json !== 'object') {
       throw new Error("Invalid JSON");
     }
@@ -168,6 +182,8 @@ async function getWithContext(baseUrl, orig_payload = {}) {
     }
 
     const data = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
+    */
+    data = manage_json_resp(json);
     return data;
   } catch (err) {
     throw new Error("GET failed: " + err.message);
@@ -188,6 +204,9 @@ async function postWithContext(url, orig_payload = {}) {
 
     const json = await res.json();
 
+    const data = manage_json_resp(json);
+
+    /*
     if (!json || typeof json !== 'object') {
       throw new Error("Invalid JSON response");
     }
@@ -197,6 +216,7 @@ async function postWithContext(url, orig_payload = {}) {
     }
 
     const data = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
+    */
     return data;
   } catch (err) {
     throw new Error("POST failed: " + err.message);
@@ -479,6 +499,35 @@ async function postWithContext(url, orig_payload = {}) {
             ]
         },
 
+    "Helpful_DB_IDs": {
+        type: "menu_parent",
+        label: 'Helpful Database IDs'
+        },
+
+      "Embedders": {
+            type: "dynamic_page",
+            fetchUrl: "/get_embedder_info",   // endpoint returning JSON array of objects
+            renderFunction: renderTable,     // reusable table renderer
+            parent: "Helpful_DB_IDs",
+            label: "Embedders (Up to 100)"
+          },
+
+      "Relationship Populators": {
+            type: "dynamic_page",
+            fetchUrl: "/get_rp_info",   // endpoint returning JSON array of objects
+            renderFunction: renderTable,     // reusable table renderer
+            parent: "Helpful_DB_IDs",
+            label: "Relationship Populators (Up to 100)"
+          },
+
+      "Relationship String to Code Matcher Populators": {
+            type: "dynamic_page",
+            fetchUrl: "/get_rcmp_info",   // endpoint returning JSON array of objects
+            renderFunction: renderTable,     // reusable table renderer
+            parent: "Helpful_DB_IDs",
+            label: "Relationship String to Code Matcher Populators (Up to 100)"
+          },
+
     "About": {
         type: "menu_parent",
         label: 'About - PLEASE READ'
@@ -631,6 +680,55 @@ function toggleDropdown() {
     }
 
 
+    function renderTable(data) {
+      if (!Array.isArray(data) || data.length === 0) {
+        return h('div', {}, 'No data available.');
+      }
+
+      return h('table', { class: 'dynamic-table' },
+        h('thead', {},
+          h('tr', {},
+            ...Object.keys(data[0]).map(k => h('th', {}, k))
+          )
+        ),
+        h('tbody', {},
+          data.map(row =>
+            h('tr', {},
+              ...Object.values(row).map(v => h('td', {}, v))
+            )
+          )
+        )
+      );
+    }
+
+
+async function renderDynamicPage(config) {
+  const container = document.getElementById('app'); // where you mount
+
+  // optional loading message
+  container.innerHTML = 'Loading...';
+
+  try {
+    const resp = await fetch(config.fetchUrl);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    json_resp = manage_json_resp(data);
+
+    // clear container and append table
+    container.innerHTML = '';
+    const content = h('div', {},
+      h('h2', {}, config.label || 'Results'),
+      config.renderFunction(json_resp)
+    );
+    render(content, container);
+
+  } catch (err) {
+    container.innerHTML = 'Error loading page';
+    console.error(err);
+  }
+}
+
     window.addEventListener("hashchange", showSection);
     window.addEventListener("DOMContentLoaded", () => {
       generateMenu();
@@ -660,7 +758,10 @@ function toggleDropdown() {
     else if (config.type === "form") {
         render(h(DarthVecdorForm, { config }), container);
         }
-    }
+    else if (config.type === "dynamic_page") {
+        renderDynamicPage(config);
+        }
+    } // END FUNCTION SHOW SECTION
 /////////////////// END FUNCTIONS FOR THE PAGE NOT SPECIFICALLY RELATED TO THE FORM //////////////////////
 
 
@@ -729,6 +830,7 @@ function DarthVecdorForm({ config }) {
 
 
 // EXPORT current form state
+/*
 const exportFormToJson = () => {
   const payload = {
     ...mainForm,
@@ -746,6 +848,98 @@ const exportFormToJson = () => {
   a.click();
   URL.revokeObjectURL(url);
 };
+*/
+
+const exportFormToJson = () => {
+  // 1️⃣ Base pieces
+  const formTitle =
+    (config.formTitle && String(config.formTitle).trim()) ||
+    'form';
+
+  // Try mainForm.base_name first, fallback to mainForm.name
+  const baseName =
+    (mainForm?.base_name && String(mainForm.base_name).trim()) ||
+    (mainForm?.name && String(mainForm.name).trim()) ||
+    'unnamed';
+  /*
+  const baseName =
+    (mainForm?.base_name && String(mainForm.base_name).trim()) ||
+    'unnamed';
+  */
+
+  const version =
+    (mainForm?.ctg_version && String(mainForm.ctg_version).trim()) ||
+    (mainForm?.version && String(mainForm.version).trim()) ||
+    null;
+
+  // 2️⃣ Compact timestamp YYYYMMDD_HHMMSS
+  const d = new Date();
+  const timestamp =
+    d.getFullYear().toString() +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    String(d.getDate()).padStart(2, '0') +
+    '_' +
+    String(d.getHours()).padStart(2, '0') +
+    String(d.getMinutes()).padStart(2, '0') +
+    String(d.getSeconds()).padStart(2, '0');
+
+  // 3️⃣ Build the automatic default filename
+  let filename = `${formTitle}__${baseName}`;
+  if (version) filename += `__v${version}`;
+  filename += `__${timestamp}`;
+
+  // 4️⃣ Sanitize for safe default
+  const safeName = filename
+    .replace(/[^\w\d\-_.]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
+
+  // 5️⃣ Prompt the user to allow edits
+  const userFilename = window.prompt(
+    'Edit export filename if desired:',
+    safeName
+  );
+
+  if (!userFilename) {
+    // User hit Cancel
+    return;
+  }
+
+  // 6️⃣ Polish the user input for safety
+  const finalName = userFilename
+    .trim()
+    .replace(/[^\w\d\-_.]+/g, '_')  // replace unsafe chars
+    .replace(/_+/g, '_')            // collapse repeats
+    .replace(/^_+|_+$/g, '')        // trim leading/trailing _
+    .toLowerCase();
+
+  // 7️⃣ Build the export payload
+  const payload = {
+    ...mainForm,
+    rels: subforms,
+    formKey: config.formKey,
+    exportedAt: new Date().toISOString()
+  };
+
+  // 8️⃣ Create the Blob and trigger download
+  const blob = new Blob(
+    [JSON.stringify(payload, null, 2)],
+    { type: 'application/json' }
+  );
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${finalName}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  URL.revokeObjectURL(url);
+};
+
 
 
 const importFormFromJson = (file, fileInputEl) => {
@@ -1398,7 +1592,12 @@ const renderConfigSelectorDropdown = () => {
     ),
 
     h('div', { class: 'config-selector-box' },
-      h('label', {}, 'File-Stored Configurations: Import and Export'),
+        h('label', {}, 'File-Stored Configurations: Import and Export'),
+        h('i', { style: 'font-weight: normal;' },
+        'NOTE: Exports save on-screen form content to a file, ',
+        'Imports will import data only to the form on the screen, ',
+        'not to the database (unless you import and then click the Submit button to run the function).'
+        ),
       h('div', {style: 'display: flex; gap: 0.5rem; margin-bottom: 0.25rem;'},
       h('button', {
         type: 'button',

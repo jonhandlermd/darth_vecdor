@@ -17,6 +17,7 @@
 #  limitations under the License.
 
 from sqlalchemy import distinct, select
+import json
 from app_source.public_repo.core.code.interactors.db_orm import (
     enhanced_db_class
     , code_sets_class
@@ -103,6 +104,87 @@ def get_expansion_styles():
 def get_llm_configs():
     results = list(llm_configs.llm_config_maps.keys())
     return results
+
+def get_embedder_info(enhanced_db_obj:enhanced_db_class):
+    # Make the query
+    query_str = f'''
+SELECT DISTINCT
+    em.id AS embedder_meta_id
+	, em.src AS embedder_src
+	, em.src_location AS embedder_src_location
+FROM {odc.schema}.embedder_metas em
+ORDER BY em.src
+LIMIT 100
+        '''
+    success, results = enhanced_db_obj.do_query(
+            query=query_str
+            , query_params={}
+            )
+    # Convert results to list of dicts which is needed here.
+    results = [dict(row._mapping) for row in results]
+    return json.dumps(results or [])
+
+
+def get_rp_info(enhanced_db_obj:enhanced_db_class):
+    # Make the query
+    query_str = f'''
+-- This query may be helpful when configuring the custom table generators.
+SELECT DISTINCT ON
+    (
+    rp.name
+    , rp.id
+    , rels.rel
+    )
+	rp.name AS rels_populator_name
+	, rp.id AS relationship_populator_id
+    , rels.rel
+FROM {odc.schema}.rels_populator rp
+INNER JOIN {odc.schema}.rels rels
+	ON rp.id = rels.rels_populator_id
+ORDER BY
+	rp.name
+	, rels.rel
+LIMIT 100
+        '''
+    success, results = enhanced_db_obj.do_query(
+            query=query_str
+            , query_params={}
+            )
+    # Convert results to list of dicts which is needed here.
+    results = [dict(row._mapping) for row in results]
+    return json.dumps(results or [])
+
+
+def get_rcmp_info(enhanced_db_obj:enhanced_db_class):
+    # Make the query
+    query_str = f'''
+-- This query may be helpful when configuring the custom table generators.
+SELECT DISTINCT
+	rp.name AS rels_populator_name
+	, rcmp.match_from_rel AS rel
+	, rp.id AS relationship_populator_id
+	, rcmp.embedder_meta_id AS rel_code_matches_populator_embedder_meta_id
+	, em.src AS rel_code_matches_populator_embedder_src
+	-- , em.src_location AS rel_code_matches_populator_src_location
+FROM {odc.schema}.rels_populator rp
+INNER JOIN {odc.schema}.rel_code_matches_populator rcmp
+	ON rp.id = rcmp.match_from_rel_populator_id
+LEFT OUTER JOIN {odc.schema}.embedder_metas em
+	ON rcmp.embedder_meta_id = em.id
+ORDER BY
+	rp.name
+	, rcmp.match_from_rel
+	, em.src
+LIMIT 100
+        '''
+    success, results = enhanced_db_obj.do_query(
+            query=query_str
+            , query_params={}
+            )
+    # Convert results to list of dicts which is needed here.
+    results = [dict(row._mapping) for row in results]
+    return json.dumps(results or [])
+
 
 
 
