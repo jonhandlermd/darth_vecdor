@@ -23,27 +23,40 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import weakref
 import numpy as np
-from typing import List
+from typing import List, Any, Union
 import numbers
 import copy
 import textwrap
+# from contextlib import contextmanager
 
 # Torch imports
 import torch
 from torch import Tensor
 
+# Flask imports
+# from flask import g
+
 # PostgreSQL-related imports
 from pgvector.sqlalchemy import Vector
+from pglast import parse_sql
+from pglast.ast import (
+    DeleteStmt,
+    DropStmt,
+    TruncateStmt,
+    UpdateStmt,
+    AlterTableStmt,
+    )
 
 # SQL Alchemy imports
 from sqlalchemy import (
     UniqueConstraint, Result, create_engine, URL, ForeignKey, Boolean, CursorResult,
-    Column, Integer, Float, Text, TIMESTAMP, ARRAY, text, and_, or_, DOUBLE_PRECISION, event
+    Column, Integer, Float, Text, TIMESTAMP, ARRAY, text, and_, or_, DOUBLE_PRECISION, event, String,
+    Date, DateTime
 )
-from sqlalchemy.orm import sessionmaker, declarative_base, Session, relationship, selectinload
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship, selectinload
 
 # This program imports
 import app_source.public_repo.core.configs.orm_db_configs as odc
@@ -147,7 +160,53 @@ def get_existing_obj_via_unique_constraints(
     for uc_set in unique_constraints_sets:
         and_filters = []
         for uc in uc_set:
-            and_filters.append(getattr(table_class, uc) == getattr(obj, uc))
+            col_attr = getattr(table_class, uc)
+            val = getattr(obj, uc)
+
+            # and_filters.append(getattr(table_class, uc) == getattr(obj, uc))
+            # If we get None as the value of obj.uc, it will convert to NULL
+            # and an equals on NULL is always false, so handle that.
+            if val is None:
+                and_filters.append(col_attr.is_(None))
+                continue
+
+            # Normalize types based on column type -- this is required for psycopg3, which
+            # is very strict about type matching compared to psycopg2, apparently.
+            col_type = col_attr.type
+
+            if isinstance(col_type, Integer):
+                val = int(val)
+            elif isinstance(col_type, Float):
+                val = float(val)
+            elif isinstance(col_type, String):
+                val = str(val)
+            elif isinstance(col_type, Boolean):
+                val = bool(val)
+            elif isinstance(col_type, Date):
+                if isinstance(val, str):
+                    val = date.fromisoformat(val)
+                elif isinstance(val, datetime):
+                    val = val.date()
+                elif not isinstance(val, date):
+                    raise TypeError(f"Cannot convert {val!r} to date")
+            elif isinstance(col_type, DateTime):
+                if isinstance(val, str):
+                    val = datetime.fromisoformat(val)
+                elif isinstance(val, date):
+                    # Convert date to datetime at midnight
+                    val = datetime(val.year, val.month, val.day)
+                elif not isinstance(val, datetime):
+                    raise TypeError(f"Cannot convert {val!r} to datetime")
+            else:
+                # Catch-all for UUID and other common types
+                if isinstance(val, str) and getattr(col_type, "__class__", None).__name__ == "UUID":
+                    val = uuid.UUID(val)
+
+            # Add equality filter
+            and_filters.append(col_attr == val)
+
+
+
         # self_group forces the parentheses around the AND-ed group.
         or_filters.append(and_(*and_filters).self_group())
 
@@ -191,7 +250,7 @@ def update_non_null_properties(
     return is_difference
 
 
-def upsert_not_none_fields_only_via_unique_constraints(enhanced_db_obj:enhanced_db_class, obj):
+def upsert_not_none_fields_only_via_unique_constraints(enhanced_db_obj:enhanced_db_class, obj:Any):
     with enhanced_db_obj.session_class() as session:
         # Get existing obj, if any
         existing_obj = get_existing_obj_via_unique_constraints(session, obj)
@@ -219,7 +278,7 @@ def upsert_not_none_fields_only_via_unique_constraints(enhanced_db_obj:enhanced_
         if existing_obj:
             update_non_null_properties(existing_obj, obj)
         else:
-            msg = "Could not get existing object that should have just gotten created!"
+            msg = "ERROR: Could not get existing object that should have just gotten created!"
             debug.log(__file__, msg)
             raise Exception(msg)
         return
@@ -328,11 +387,11 @@ class audit_log_class(dec_base):
         )
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    requester = Column(Text)
-    requester_on_behalf_of = Column(Text)
-    epoch_secs = Column(DOUBLE_PRECISION)
-    request_msg = Column(Text)
-    response_msg = Column(Text)
+    requester = Column(Text, nullable=False)
+    requester_on_behalf_of = Column(Text, nullable=False)
+    epoch_secs = Column(DOUBLE_PRECISION, nullable=False)
+    request_msg = Column(Text, nullable=False)
+    response_msg = Column(Text, nullable=False)
 
     def __init__(self
         , enhanced_db_obj:enhanced_db_class
@@ -371,7 +430,7 @@ class code_populators_class(base_table_class):
     # Query to get the data
     query = Column(Text)
     # Terminology
-    terminology = Column(Text)
+    terminology = Column(Text, nullable=False)
     # Additional info
     desc = Column(Text)
 
@@ -427,8 +486,8 @@ class codes_class(base_table_class):
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
     code_populator_id = Column(Text, ForeignKey(f'{odc.schema}.code_populators.id'))
-    code = Column(Text)
-    terminology = Column(Text)
+    code = Column(Text, nullable=False)
+    terminology = Column(Text, nullable=False)
     main_str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'))
     strs_model = relationship("strs_class")
 
@@ -458,10 +517,10 @@ class beceptivities_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    name = Column(Text)
-    prompt = Column(Text)
-    min_val = Column(Float)
-    max_val = Column(Float)
+    name = Column(Text, nullable=False)
+    prompt = Column(Text, nullable=False)
+    min_val = Column(Float, nullable=False)
+    max_val = Column(Float, nullable=False)
 
     def __init__(
             self
@@ -488,11 +547,11 @@ class str_beceptivities_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    beceptivity_id = Column(Text, ForeignKey(f'{odc.schema}.beceptivities.id'))
+    beceptivity_id = Column(Text, ForeignKey(f'{odc.schema}.beceptivities.id'), nullable=False)
     # I did not use str_id and denormalize into the strs table because this may be a concept that we never use
     # for anything else, and may not want to keep or generate its vector. So, let's just store the string here.
     # I hope I don't regret this later. <sigh>
-    str = Column(Text)
+    str = Column(Text, nullable=False)
     val = Column(Float)
 
     def __init__(
@@ -519,13 +578,13 @@ class manual_content_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    purpose = Column(Text)
-    generator_str = Column(Text)
-    generator_type = Column(Text)
-    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'))
+    purpose = Column(Text, nullable=False)
+    generator_str = Column(Text, nullable=False)
+    generator_type = Column(Text, nullable=False)
+    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'), nullable=False)
     db_params = Column(Text)
-    vec = Column(Vector(odc.vector_size))
-    vec_type = Column(Text) # like max, min, cls
+    vec = Column(Vector(odc.vector_size), nullable=False)
+    vec_type = Column(Text, nullable=False) # like max, min, cls
 
     def __init__(
             self
@@ -558,7 +617,7 @@ class strs_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    str = Column(Text)
+    str = Column(Text, nullable=False)
     def __init__(
             self
             , enhanced_db_obj:enhanced_db_class
@@ -584,8 +643,8 @@ class code_strs_class(base_table_class):
         )
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    code_id = Column(Text, ForeignKey(f'{odc.schema}.codes.id'))
-    str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'))
+    code_id = Column(Text, ForeignKey(f'{odc.schema}.codes.id'), nullable=False)
+    str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'), nullable=False)
     priority = Column(Integer)
 
     def __init__(
@@ -615,8 +674,8 @@ class str_vectors_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'))
-    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'))
+    str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'), nullable=False)
+    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'), nullable=False)
     # Vectors
     cls = Column(Vector(odc.vector_size))
     mean = Column(Vector(odc.vector_size))
@@ -693,11 +752,11 @@ class str_expansion_set_summary_vectors_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    str_expansion_set_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set.id'))
+    str_expansion_set_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set.id'), nullable=False)
     # The summary vectors may not be generated by an embedder, but the underlying
     # vectors that are being summarized will have been generated by an embedder,
     # so either way we want to know which embedder it was.
-    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'))
+    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'), nullable=False)
     orig_and_exp_mean = Column(Vector(odc.vector_size))
     orig_and_exp_max = Column(Vector(odc.vector_size))
     # Summary vectors of just the expansion strings PLUS including the original string
@@ -754,10 +813,10 @@ class code_str_expansion_set_summary_vectors_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    code_summary_vectors_id = Column(Text, ForeignKey(f'{odc.schema}.code_summary_vectors.id'))
-    str_expansion_set_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set.id'))
+    code_summary_vectors_id = Column(Text, ForeignKey(f'{odc.schema}.code_summary_vectors.id'), nullable=False)
+    str_expansion_set_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set.id'), nullable=False)
     # NOTE: The embedder MUST come from the associated code_summary_vectors object
-    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'))
+    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'), nullable=False)
     # Summary vectors of just the expansion strings NOT including the original string
     exp_only_mean = Column(Vector(odc.vector_size))
     exp_only_max = Column(Vector(odc.vector_size))
@@ -811,12 +870,12 @@ class code_summary_vectors_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    code_id = Column(Text, ForeignKey(f'{odc.schema}.codes.id'))
+    code_id = Column(Text, ForeignKey(f'{odc.schema}.codes.id'), nullable=False)
     # str_expansion_set_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set.id'))
     # The summary vectors may not be generated by an embedder, but the underlying
     # vectors that are being summarized will have been generated by an embedder,
     # so either way we want to know which embedder it was.
-    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'))
+    embedder_meta_id = Column(Text, ForeignKey(f'{odc.schema}.embedder_metas.id'), nullable=False)
     # Summary vectors of just the expansion strings NOT including the original string
     mean = Column(Vector(odc.vector_size))
     max = Column(Vector(odc.vector_size))
@@ -882,26 +941,26 @@ class str_expansion_set_populator_class(base_table_class):
     # datetime = Column(DateTime, default=lambda: make_datetime())
     datetime = Column(TIMESTAMP(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
     # Name to easily and *uniquely* reference this expansion
-    name = Column(Text)
+    name = Column(Text, nullable=False)
     # What are the params of the database object creator?
-    db_params = Column(Text)
+    db_params = Column(Text, nullable=False)
     # What is the terminology, code_set, or relationship used to get the strings needing expansion?
     # Did not want to make this a foreign key relationship because I was concerned this could lead
     # to a situation where the populator was forced to be deleted if the strings were
     # deleted, but we might want to hang onto the content.
-    str_selector = Column(Text)
+    str_selector = Column(Text, nullable=False)
     # What is the code selector type -- terminology, codes_set, or rel?.
-    str_selector_type = Column(Text)
+    str_selector_type = Column(Text, nullable=False)
     # What are the params of the LLM connection to the LLM that will give us the expansions
-    llm_params = Column(Text)
+    llm_params = Column(Text, nullable=False)
     # What is the prompt to get these expansions
     prompt = Column(Text)
     # What is the style
-    style = Column(Text)
+    style = Column(Text, nullable=False)
     # What are the prompt placeholders to be replaced with content?
     placeholders_json = Column(Text)
     # What is the style version
-    style_version = Column(Float)
+    style_version = Column(Float, nullable=False)
     notes = Column(Text)
 
     def __init__(
@@ -949,7 +1008,7 @@ class str_expansion_set_class(base_table_class):
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
     str_expansion_set_populator_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set_populator.id'))
-    orig_str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'))
+    orig_str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'), nullable=False)
 
     def __init__(
             self
@@ -974,8 +1033,8 @@ class str_expansion_set_strs_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    str_expansion_set_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set.id'))
-    expansion_str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'))
+    str_expansion_set_id = Column(Text, ForeignKey(f'{odc.schema}.str_expansion_set.id'), nullable=False)
+    expansion_str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'), nullable=False)
     
     def __init__(
             self
@@ -1155,7 +1214,7 @@ class rels_populator_class(base_table_class):
     # datetime = Column(DateTime, default=lambda: make_datetime())
     datetime = Column(TIMESTAMP(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
     # Name to easily and *uniquely* reference this relationship
-    name = Column(Text)
+    name = Column(Text, nullable=False)
     # What are the params of the database object creator?
     db_params = Column(Text)
     # What is the terminology or code_set used to get the codes needing a relationship?
@@ -1208,11 +1267,11 @@ class rels_class(base_table_class):
 
     # id = Column(Text, primary_key=True, default=lambda: str(uuid.uuid4()), nullable=False)
     id = Column(Text, primary_key=True, server_default = text("gen_random_uuid()"), nullable=False)
-    subj_code_id = Column(Text, ForeignKey(f'{odc.schema}.codes.id'))
-    rels_populator_id = Column(Text, ForeignKey(f'{odc.schema}.rels_populator.id'))
-    rel = Column(Text)
+    subj_code_id = Column(Text, ForeignKey(f'{odc.schema}.codes.id'), nullable=False)
+    rels_populator_id = Column(Text, ForeignKey(f'{odc.schema}.rels_populator.id'), nullable=False)
+    rel = Column(Text, nullable=False)
     rels_populator_name = Column(Text, ForeignKey(f'{odc.schema}.rels_populator.name'))
-    obj_str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'))
+    obj_str_id = Column(Text, ForeignKey(f'{odc.schema}.strs.id'), nullable=False)
     priority = Column(Float)
 
     def __init__(
@@ -1314,14 +1373,17 @@ class base_db_class:
             ):
         """
         Initialize the database connection to be used by SQLAlchemy
-        :param connection_string: Should be SQLAlchemy-compatible, like this if using psycopg2 -- "postgresql+psycopg2://user:password@host:port/dbname", -- default is the config connection string.
+        :param connection_string: Should be SQLAlchemy-compatible, like this if using psycopg -- "postgresql+psycopg://user:password@host:port/dbname", -- default is the config connection string.
         :param engine_options_dict: dictionary of key-value pairs that represent connection options, like echo or pool. Default or None will be treated is an echo False.
         """
 
         # Make the engine, which is really the db connection.
-        final_connection_string = connection_string
-        if final_connection_string is None:
+        # If they gave us a connection string, use it.
+        if connection_string:
+            final_connection_string = connection_string
+        else:
             final_connection_string = odc.connection_string
+
         final_engine_options_dict = engine_options_dict
         if final_engine_options_dict is None:
             final_engine_options_dict = {"echo": False}
@@ -1342,6 +1404,7 @@ class base_db_class:
             self
             , query: str
             , query_params: dict
+            , as_role=None
             ) -> (bool, Result):
 
         try:
@@ -1359,6 +1422,7 @@ class base_db_class:
             self
             , query: str
             , query_params: dict
+            , as_role=None
             ) -> bool:
 
         try:
@@ -1393,6 +1457,54 @@ class base_db_class:
         return True, change_count
 
 
+    # Does the query contain anything that could remove data?
+    def contains_destructive(query: str) -> bool:
+        DESTRUCTIVE = (
+            DeleteStmt
+            , DropStmt
+            , TruncateStmt
+            , UpdateStmt
+            , AlterTableStmt
+            )
+        tree = parse_sql(query)
+
+        for stmt in tree:
+            for node in stmt.traverse():
+                if isinstance(node, DESTRUCTIVE):
+                    return True
+        return False
+
+"""
+    @contextmanager
+    def _query_context(self, as_role: str | None):
+        with self.session_class() as session:
+            with session.begin():
+                # --- SET LOCAL ROLE ---
+                if as_role:
+                    session.execute(
+                        text("SET LOCAL ROLE :role"),
+                        {"role": as_role}
+                    )
+
+                # --- application_name ---
+                app_name = oc.app_name
+                if hasattr(g, "ks_endpoint"):
+                    app_name += f"::{g.ks_endpoint}"
+
+                    session.execute(
+                        text("SET LOCAL application_name = :app_name"),
+                        {"app_name": app_name}
+                    )
+
+                    # --- user context ---
+                    if hasattr(g, "user") and g.user:
+                        session.execute(
+                            text("SET LOCAL app.user_id = :user_id"),
+                            {"user_id": str(g.user)}
+                        )
+                    yield session
+"""
+
 class enhanced_db_class(base_db_class):
 
     _embedders: dict[str, stc] = {}  # Store loaded embedders
@@ -1407,7 +1519,7 @@ class enhanced_db_class(base_db_class):
             ):
         """
         Initialize the database connection to be used by SQLAlchemy
-        :param connection_string: Should be SQLAlchemy-compatible, like this if using psycopg2 -- "postgresql+psycopg2://user:password@host:port/dbname", -- default is the config connection string.
+        :param connection_string: Should be SQLAlchemy-compatible, like this if using psycopg -- "postgresql+psycopg://user:password@host:port/dbname", -- default is the config connection string.
         :param engine_options_dict: dictionary of key-value pairs that represent connection options, like echo or pool. Default is an echo False.
         :param embedder_meta_src: string with name of embedder
         :param embedder_meta_src_location: string pointing to where to find the embedder
@@ -1459,7 +1571,7 @@ class enhanced_db_class(base_db_class):
         # for safety, try to limit to one configged embedder. This won't be perfect, and need
         # to fix later so this is not needed.
         if self.embedder_meta_obj.src != odc.default_embedder_meta_src:
-            msg = "For now, need to use only the default embedder."
+            msg = "ERROR: For now, need to use only the default embedder."
             raise Exception(msg)
 
         # Make the params dict, but be sure to get rid of the password in the connection string.
@@ -1535,7 +1647,9 @@ def populate_code_and_strs(code_populators_obj:code_populators_class, str_expans
 
     # Make sure this object is legit populated.
     if not code_populators_obj:
-        raise Exception('Exception raised!')
+        msg = 'ERROR: Exception raised! No code populators object.'
+        debug.log(__file__, msg)
+        raise Exception(msg)
 
     # Don't think I need this
     # dt = get_utc_now()
@@ -1600,7 +1714,9 @@ def populate_expansion_strs(espo:str_expansion_set_populator_class, llm_password
 
     # Make sure this object is legit populated.
     if not espo:
-        raise Exception('Exception raised!')
+        msg = 'ERROR: No expansion string object.'
+        debug.log(__file__, msg)
+        raise Exception(msg)
 
     # Do query, then loop through items and add them where appropriate
     # First need a database object
@@ -1608,6 +1724,7 @@ def populate_expansion_strs(espo:str_expansion_set_populator_class, llm_password
 
     with enhanced_db_obj.session_class() as session:
         # Get the desired strs
+        #TODO: Consider changing these to be .scalars().all() so that they return lists instead of tuples in order to fix type hinting. Just need to check downstream no issues if I do that.
         if espo.str_selector_type == 'terminology':
             expansion_str_descriptor = 'terminology code\'s string to be expanded'
             results:List[str] = session.query(codes_class).distinct().filter(codes_class.terminology == espo.str_selector).with_entities(codes_class.main_str_id).all()
@@ -1619,9 +1736,9 @@ def populate_expansion_strs(espo:str_expansion_set_populator_class, llm_password
             results:List[str] = session.query(rels_class).distinct().filter(rels_class.rels_populator_name == espo.str_selector).with_entities(rels_class.obj_str_id).all()
         else:
             expansion_str_descriptor = 'Something went wrong'
-            msg = "Got exception. Was query wrong? Something else?"
+            msg = "ERROR: Got exception. Was query wrong? Something else?"
             debug.log(__file__, msg)
-            raise Exception
+            raise Exception(msg)
 
     # Loop through every string ID and get the expansion string
     result_len = len(results)
@@ -1694,11 +1811,11 @@ def populate_expansion_strs(espo:str_expansion_set_populator_class, llm_password
                 # Now make/store the expansion set string item
                 esso = str_expansion_set_strs_class(enhanced_db_obj, str_expansion_set_id=seso.id, expansion_str_id=expansion_str_obj.id)
         except Exception as e:
-            msg = f"Got exception processing response with llm: {e}"
+            msg = f"ERROR: Got exception processing response with llm: {e}"
             debug.log(__file__, msg)
             # print(msg)
             if die_on_llm_failure:
-                raise Exception(f"{msg}, exiting because set to die on llm failure")
+                raise Exception(f"Exiting because set to die on llm failure")
     tskm.emit_status(f"DONE processing {lpro.name} using LLM with {lpro.list_length} to process.", print_also=d)
 
     return
@@ -1996,7 +2113,7 @@ def populate_code_set(csp:code_sets_populator_class):
 
     success, results = enhanced_db_obj.do_query(csp.query, ())
     if not success:
-        msg = f"Not success populating code_set, problem with query: {csp.query}"
+        msg = f"ERROR: Not success populating code_set, problem with query: {csp.query}"
         debug.log(__file__, msg)
         raise Exception
 
@@ -2049,14 +2166,14 @@ def populate_custom_table(enhanced_db_obj:enhanced_db_class, ctg_obj:custom_tabl
 
     # If we did not get either both or neither of ctg_dest_code_field and , then error.
     if (ctg_obj.ctg_dest_code_field or ctg_obj.ctg_code_placeholder) and not (ctg_obj.ctg_dest_code_field and ctg_obj.ctg_code_placeholder):
-        msg = f"FAILED populate_custom_table get codes to process because must either get both or neither of  code placeholder and destination code field -- cannot get only one of those two."
+        msg = f"ERROR: FAILED populate_custom_table get codes to process because must either get both or neither of  code placeholder and destination code field -- cannot get only one of those two."
         debug.log(__file__, msg)
         tskm.emit_status(msg, print_also=gl_d)
         raise Exception(msg)
 
     # If we got a ctg_obj.ctg_code_placeholder but do not find it in the query, then error.
     if ctg_obj.ctg_code_placeholder and not ':' + ctg_obj.ctg_code_placeholder in select_query:
-        msg = f"FAILED populate_custom_table get codes to process because got neither code placeholder nor destination code field -- must get either both or at least code placeholder (if doing batch query)."
+        msg = f"ERROR: FAILED populate_custom_table get codes to process because got neither code placeholder nor destination code field -- must get either both or at least code placeholder (if doing batch query)."
         debug.log(__file__, msg)
         tskm.emit_status(msg, print_also=gl_d)
         raise Exception(msg)
@@ -2088,7 +2205,7 @@ WHERE 1 = 0
     for setup_query in setup_queries:
         success = enhanced_db_obj.do_no_result_query(setup_query, query_params)
         if not success:
-            msg = f"FAILED populate_custom_table get codes to process! {success}"
+            msg = f"ERROR: FAILED populate_custom_table get codes to process! {success}"
             debug.log(__file__, msg)
             tskm.emit_status(msg, print_also=gl_d)
             raise Exception(msg)
@@ -2223,7 +2340,9 @@ def get_codes_via_selector(enhanced_db_obj:enhanced_db_class, code_selector:str,
                 .all()
             )
         else:
-            raise Exception
+            msg = 'ERROR: Cannot get codes via selector because not given legit code selector type.'
+            debug.log(__file__, msg)
+            raise Exception(msg)
         return results
 
 '''
@@ -2246,7 +2365,7 @@ def get_strs_via_populator(enhanced_db_obj, selector, selector_type:str):
 def make_rel_item(enhanced_db_obj:enhanced_db_class, subj_code_id:str, rel:str, final_obj_str:str, rpo:rels_populator_class, priority:float):
 
         if not rel or not final_obj_str:
-            msg = f"Did not get either a rel (got: {rel}) or a final_obj_str (got: {final_obj_str}"
+            msg = f"ERROR: Did not get either a rel (got: {rel}) or a final_obj_str (got: {final_obj_str}"
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
 
@@ -2256,13 +2375,13 @@ def make_rel_item(enhanced_db_obj:enhanced_db_class, subj_code_id:str, rel:str, 
             , the_str=final_obj_str
             )
         if not str_obj or not str_obj.id:
-            msg = f"Did not get either a str_obj (got: {str_obj}) or a str_obj.id (got: {str_obj.id}"
+            msg = f"ERROR: Did not get either a str_obj (got: {str_obj}) or a str_obj.id (got: {str_obj.id}"
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
         # Make string vector if we don't already have one
         vec_obj = str_vectors_class(enhanced_db_obj=enhanced_db_obj, str_id=str_obj.id)
         if not vec_obj or not vec_obj.id:
-            msg = f"Did not get either a vec_obj (got: {vec_obj}) or a vec_obj.id (got: {vec_obj.id})"
+            msg = f"ERROR: Did not get either a vec_obj (got: {vec_obj}) or a vec_obj.id (got: {vec_obj.id})"
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
         # Now make/store the relationship
@@ -2276,7 +2395,7 @@ def make_rel_item(enhanced_db_obj:enhanced_db_class, subj_code_id:str, rel:str, 
             , priority=priority
             )
         if not rel_obj or not rel_obj.rel or not rel_obj.id:
-            msg = f"Did not get either a rel_obj (got: {rel_obj}) or a rel_obj.rel (got: {rel_obj.rel} or a rel_obj.id (got: {rel_obj.id})"
+            msg = f"ERROR: Did not get either a rel_obj (got: {rel_obj}) or a rel_obj.rel (got: {rel_obj.rel} or a rel_obj.id (got: {rel_obj.id})"
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
 
@@ -2294,7 +2413,8 @@ def are_you_sureify(llm_obj:llmc, rels_prompt_obj:rspc, rel_prompt_obj:rpc, subj
     resps = []
     # Need to make sure the needed replacer keys are in the rel prompt object
     if rels_prompt_obj.placeholders.subj_str is None or rels_prompt_obj.placeholders.obj_str is None:
-        msg = f'{rels_prompt_obj.placeholders.subj_str} and {rels_prompt_obj.placeholders.obj_str} must not be None in the rel_prompt_obj but one or both were None.'
+        msg = f'ERROR: {rels_prompt_obj.placeholders.subj_str} and {rels_prompt_obj.placeholders.obj_str} must not be None in the rel_prompt_obj but one or both were None.'
+        debug.log(__file__, msg)
         raise Exception(msg)
 
     # Make the llm_replacer_content dictionary the content for the elements to be replaced.
@@ -2328,7 +2448,7 @@ def are_you_sureify(llm_obj:llmc, rels_prompt_obj:rspc, rel_prompt_obj:rpc, subj
             debug.debug(llm_obj.last_post_processed_prompt, d=d)
             debug.debug(llm_obj.last_resp, d=d)
         except Exception as e:
-            msg = f"Got exception processing are_you sure response with llm: {e}"
+            msg = f"ERROR: Got exception processing are_you sure response with llm: {e}"
             debug.log(__file__, msg)
             # print(msg)
             if die_on_llm_failure:
@@ -2404,7 +2524,7 @@ def are_you_sureify(llm_obj:llmc, rels_prompt_obj:rspc, rel_prompt_obj:rpc, subj
         return highest
     else:
         # Shouldn't get here. If we do, return an error.
-        msg = f"Got an invalid adjudicator of {rel_prompt_obj.are_you_sure_adjudicator}"
+        msg = f"ERROR: Got an invalid adjudicator of {rel_prompt_obj.are_you_sure_adjudicator}"
         debug.log(__file__, msg)
         raise Exception(msg)
 
@@ -2585,7 +2705,7 @@ def get_more_beceptive_content(
             get_more_beceptive_content_prompt_to_use = rel_prompt_obj.get_more_beceptive_content_prompt
         # If we did not get the object string placeholder, then raise an error.
         else:
-            msg = f'''Did not find an object string placeholder in the prompt. 
+            msg = f'''ERROR: Did not find an object string placeholder in the prompt. 
 Prompt for more beceptive ccontent than the originally returned object string must have that placeholder in it. 
 The placeholder is: 
 {orpo.placeholders.obj_str}'''
@@ -2632,11 +2752,11 @@ LLM OBJ LAST RESP: {llm_obj.last_resp}
             """, d=d)
         d = gl_d
     except Exception as e:
-        msg = f"Got exception processing beceptivity retry response with llm: {e}"
+        msg = f"ERROR: Got exception processing beceptivity retry response with llm: {e}"
         debug.log(__file__, msg)
         # print(msg)
         if die_on_llm_failure:
-            tskm.emit_status("Exiting because set to die on LLM failure.")
+            tskm.emit_status("ERROR: Exiting because set to die on LLM failure.")
             raise Exception(f"{msg}, exiting because set to die on llm failure")
 
     last_resp = copy.deepcopy(llm_obj.last_resp)
@@ -2662,11 +2782,16 @@ def populate_rels(
     enhanced_db_obj = get_db_from_db_params(rpo.db_params)
 
     # Get the desired codes
+    results: Union[List[str], codes_class] # to help linting
     if mode != 'full_run':
         # If not full run, then we are just doing a test term, so get the code for that.
         if not test_term:
-            raise Exception("If not doing a full run, then must provide a test term to process.")
+            msg = "ERROR: If not doing a full run, then must provide a test term to process."
+            debug.log(msg)
+            raise Exception(msg)
         results = test_term.split("\n")
+        # Remove empty or whitespace-only strings.
+        results = [s for s in results if isinstance(s, str) and s.strip()]
         # results = [test_term]
     else:
         results = get_codes_via_selector(enhanced_db_obj, rpo.code_selector, rpo.code_selector_type)
@@ -2682,7 +2807,7 @@ def populate_rels(
     tskm.emit_status(f"About to process {lpro.name} using LLM, got {lpro.list_length} to process.", print_also=gl_d)
 
     # DEBUGGING ON/OFF
-    d = gl_d
+    local_d = gl_d
 
     # For performance, let's hang onto any beceptivity we've already assessed
     is_adequate_beceptivity_dict = {}
@@ -2699,39 +2824,48 @@ def populate_rels(
         else:
             in_proc_str = result
             in_proc_code = 'this is testing mode so no code'
-        debug.debug(f"\n-------\nBegin processing string:{in_proc_str}\n-------\n", d=d)
+        debug.debug(f"\n-------\nBegin processing string:{in_proc_str}\n-------\n", d=local_d)
 
         if tskm.is_cancelled():
-            tskm.emit_status("Cancelled population.")
+            msg = "Cancelled rels population."
+            debug.log(__file__, msg)
+            tskm.emit_status(msg)
             return
 
         # Report progress
+        debug.debug("BEGIN reporting progress with progress reporter.", d=local_d)
         lpro.report_progress(idx)
+        debug.debug("DONE reporting progress with progress reporter.", d=local_d)
 
         # First check and see if this code has already been processed by this rels_populator
         if mode == 'full_run':
             with enhanced_db_obj.session_class() as session:
                 if session.query(rels_class).filter(rels_class.subj_code_id == result.id, rels_class.rels_populator_id == rpo.id).first() is not None:
                     lpro.skip_count += 1
-                    debug.debug(f"Already did {result.code} for {in_proc_str}", d=d)
+                    debug.debug(f"Already did {result.code} for {in_proc_str}", d=local_d)
                     continue
                 else:
-                    debug.debug(f"Processing this one. {result.code}", d=d)
+                    debug.debug(f"Processing this one. {result.code}", d=local_d)
                     # exit()
 
         # Get LLM response
+        debug.debug(f"About to try to get LLM response for {in_proc_str}.", d=local_d)
         try:
             # content_dict = {'concept': result.strs_model.str}
             content_dict = {'concept': in_proc_str}
+            debug.debug(f"About to get and process LLM response for {in_proc_str}.", d=local_d)
             llm_obj.get_and_process_response(rels_prompt_obj=rels_prompt_obj, llm_replacer_content=content_dict)
+            debug.debug(f"DONE get and process LLM response for {in_proc_str}.", d=local_d)
             last_prompt = llm_obj.last_post_processed_prompt
+            debug.debug(f"Got last_prompt for {in_proc_str}.", d=local_d)
             # If testing, capture prompt and response
             ret += f"\n\n-----\nFor concept: {in_proc_str}\nPrompt sent to LLM:\n{last_prompt}\n"
             # last_resp_items = llm_obj.last_resp_items.copy()
             last_resp_items = copy.deepcopy(llm_obj.last_resp)
             ret += f"\nLLM Response:\n{llm_obj.last_resp}\n-----\n"
+            debug.debug(f"Got resp_items for {in_proc_str}.", d=local_d)
         except Exception as initial_response_for_in_proc_str_for_llm:
-            msg = f"""
+            msg = f"""ERROR:
 Got exception processing with llm initial response for term. 
 Term: {in_proc_str} 
 Error message: {initial_response_for_in_proc_str_for_llm}
@@ -2739,32 +2873,33 @@ Error message: {initial_response_for_in_proc_str_for_llm}
             debug.log(__file__, msg)
             # print(msg)
             if die_on_llm_failure:
-                tskm.emit_status("Cancelled population.")
+                tskm.emit_status("Cancelled rels population.")
                 raise Exception(f"{msg}, exiting because set to die on llm failure")
 
         # Initialize list of relationships to write
         json_rels_to_write = dict()
 
-        d = gl_d
-        debug.debug(f"Prompt was {rels_prompt_obj.prompt}\n\nResponse was:\n{last_resp_items}", d=d)
-        d = gl_d
+        try:
+            debug.debug(f"Prompt was {rels_prompt_obj.prompt}\n\nResponse was:\n{last_resp_items}", d=local_d)
+        except Exception as debug_exception:
+            debug.log(__file__,f"ERROR: Cannot show debug message!!! Error was: {debug_exception}")
 
         # Loop through each relationship
         for idx2, rel_str in enumerate(last_resp_items):
-            debug.debug(f"\n\nDealing with #{idx2} for {in_proc_str}, rel is {rel_str}", d=d)
+            debug.debug(f"\n\nDealing with #{idx2} for {in_proc_str}, rel is {rel_str}", d=local_d)
 
             # Copy the original last response item
             last_resp_item = copy.deepcopy(last_resp_items[rel_str])
             ret += f"\n\nFor {in_proc_str} {rel_str}, initial LLM response item includes: {last_resp_item}\n"
-            debug.debug(f"Last response item for {in_proc_str} {rel_str} is: {last_resp_item}", d=d)
-            debug.debug(f"last_resp_item is of type {type(last_resp_item)} and length {len(last_resp_item)}", d=d)
+            debug.debug(f"Last response item for {in_proc_str} {rel_str} is: {last_resp_item}", d=local_d)
+            debug.debug(f"last_resp_item is of type {type(last_resp_item)} and length {len(last_resp_item)}", d=local_d)
 
             # Get the relevant rel_prompt object
             rel_prompt_obj = rels_prompt_obj.rels[idx2]
 
             # Was this a rel prompt object to ignore? If so, skip to the next one.
             if rel_prompt_obj.is_no_write:
-                debug.debug(f"Last resp item is a no_write", d=d)
+                debug.debug(f"Last resp item is a no_write", d=local_d)
                 continue
 
             # Loop through and get all object strings for this relationship
@@ -2772,14 +2907,13 @@ Error message: {initial_response_for_in_proc_str_for_llm}
             # If we don't care about beceptivity, then it should be None, or at worst, 0.
             # If we do care about beceptivity, then it should be > 0.
             for idx3, orig_obj_str in enumerate(last_resp_item):
-                debug.debug("\n\n", d=d)
-                debug.debug(f"Dealing with {in_proc_str} {rel_str}:{orig_obj_str}", d=d)
+                debug.debug(f"\n\nDealing with {in_proc_str} {rel_str}:{orig_obj_str}", d=local_d)
                 # If we did not specify we wanted multiple responses, then
                 # error out? Or just take first item? We will just take first item.
                 # For now, we will just take the first item
                 if not rel_prompt_obj.is_multi_resp and idx3 > 0:
                     msg = "\n!!! GOT MORE THAN 1 REL HIT WHEN ONLY 1 EXPECTED! !!!\n"
-                    debug.debug(msg, d=d)
+                    debug.debug(msg, d=local_d)
                     debug.log(__file__, msg)
                     continue
 
@@ -2803,7 +2937,7 @@ is now:
                 # If we didn't get an obj_str because it wasn't legit then don't do any further
                 # work with this one.
                 if obj_str is None:
-                    debug.debug(f"This obj_str ({orig_obj_str}) didn't validate as legitimate.", d=d)
+                    debug.debug(f"This obj_str ({orig_obj_str}) didn't validate as legitimate.", d=local_d)
                     continue
 
                 def extract_beceptivity_from_str_src(the_str, the_str_src):
@@ -2894,22 +3028,19 @@ is now:
                             # , val_if_none=rels_prompt_obj.beceptivity_val_if_none
                             , orig_rels_prompt_obj=rels_prompt_obj
                             )
-                        d = gl_d
-                        debug.debug(f"Obj beceptivity from LLM 2nd reponse is: {current_obj_beceptivity}", d=d)
-                        d = gl_d
+                        debug.debug(f"Obj beceptivity from LLM 2nd reponse is: {current_obj_beceptivity}", d=local_d)
 
                     # We should now have a beceptivity. If not, raise an error.
                     if current_obj_beceptivity is None:
-                        msg = f"\nCurrent obj beceptivity is: {current_obj_beceptivity} but we should have gotten a numberic object beceptivity.\n"
+                        msg = f"\nERROR: Current obj beceptivity is: {current_obj_beceptivity} but we should have gotten a numberic object beceptivity.\n"
                         debug.log(__file__, msg)
                         raise Exception(msg)
 
                     # Now we have a beceptivity. Is it adequate? Decide and return result
-                    d = gl_d
                     is_adequate_tf = current_obj_beceptivity >= rel_prompt_obj.min_acceptable_beceptivity
                     is_adequate_beceptivity_dict[the_str] = is_adequate_tf
                     msg = f"Is adequate beceptivity is {is_adequate_tf} for {in_proc_str} {rel_str} {the_str} based on comparing current obj beceptivity of {current_obj_beceptivity} to min acceptable value of  {rel_prompt_obj.min_acceptable_beceptivity} "
-                    debug.debug(msg, d=d)
+                    debug.debug(msg, d=local_d)
                     ret += f"\n{msg}\n"
                     return is_adequate_tf, ret
 
@@ -2929,9 +3060,7 @@ is now:
                     for new_str in returned_obj_dict:
                         new_obj_dict[f"{base_obj_str} - {new_str}"] = returned_obj_dict[new_str]
 
-                    d = gl_d
-                    debug.debug(f"New obj strings and beceptivities after get_more_beceptive_content: {new_obj_dict}\n", d=d)
-                    d = gl_d
+                    debug.debug(f"New obj strings and beceptivities after get_more_beceptive_content: {new_obj_dict}\n", d=local_d)
 
                     ret += f"\nGet_more_beceptive_content for {current_obj_str}, returned new_obj_dict of: {new_obj_dict}\n"
 
@@ -2982,9 +3111,7 @@ is now:
 
                     current_obj = copy.deepcopy(recheck_obj)
 
-        d = gl_d
-        debug.debug(f"json_rels_to_write for {in_proc_str} = {list(json_rels_to_write.keys())}", d=d)
-        d = gl_d
+        debug.debug(f"json_rels_to_write for {in_proc_str} = {list(json_rels_to_write.keys())}", d=local_d)
 
         # Continue before writing if testing only
         # exit()
@@ -2998,14 +3125,14 @@ is now:
         # Manage priorities
         priorities_dict = {}
         for idx4, rel_obj_str in enumerate(json_rels_to_write.keys()):
-            # debug.debug(f"Storing {result.strs_model.str} relationship (sent as JSON) to {rel_obj_str}", d=d)
+            # debug.debug(f"Storing {result.strs_model.str} relationship (sent as JSON) to {rel_obj_str}", d=local_d)
             if mode == 'full_run':
-                debug.debug(f"Storing {in_proc_str} relationship (sent as JSON) to {rel_obj_str}", d=d)
+                debug.debug(f"Storing {in_proc_str} relationship (sent as JSON) to {rel_obj_str}", d=local_d)
 
                 try:
                     obj_dict = json.loads(rel_obj_str)
                 except Exception as e:
-                    msg = f"Problem decoding JSON response of {rel_obj_str} -- error was {e}"
+                    msg = f"ERROR: Problem decoding JSON response of {rel_obj_str} -- error was {e}"
                     debug.log(__file__, msg, show_log_msg=True)
                     raise Exception(msg)
                 # This should have only a single key/value pair
@@ -3032,11 +3159,12 @@ is now:
 **************************************************************
                             """
 
-                print(ret)
-                debug.log(__file__, ret)
+                debug.debug(f"******  Loop finished concept: {in_proc_str} for result index {idx} among result count {len(results)}", d=local_d)
 
+    if mode != 'full_run':
+        debug.log(__file__, ret)
 
-    tskm.emit_status(f"DONE processing {lpro.name} using LLM with {lpro.list_length} to process.", print_also=d)
+    tskm.emit_status(f"DONE processing {lpro.name} using LLM with {lpro.list_length} to process.", print_also=local_d)
 
     # All done -- return!
     return
@@ -3057,7 +3185,7 @@ def query_for_beceptivity(
 
     # Make sure we even can query for beceptivity
     if not query or not terms:
-        msg = f"""Either did not get a beceptivity retry prompt or did not get terms to retry"""
+        msg = f"""ERROR: Either did not get a beceptivity retry prompt or did not get terms to retry"""
         debug.debug(msg, d=gl_d)
         debug.log(__file__, msg)
         raise Exception(msg)
@@ -3136,7 +3264,7 @@ class matches_populator_class:
 
         # Make sure this object is legit populated.
         if not config_obj:
-            msg = "Did not get a code matches populator object"
+            msg = "ERROR: Did not get a code matches populator object"
             debug.log(__file__, msg)
             raise Exception(msg)
 
@@ -3166,13 +3294,13 @@ class matches_populator_class:
                 # Make sure we don't have a conflict of values
                 new_val = attr_query_dict[k].params[pk]
                 if pk in final_dict.keys() and final_dict[pk] != new_val:
-                    msg = f'''{pk} key has multiple different values for the same final query -- this is not allowed. 
+                    msg = f'''ERROR: {pk} key has multiple different values for the same final query -- this is not allowed. 
                     The starting dictionary was:
                     {starting_dict}
                     The problematic dictionary (converted here to JSON) was: {json.dumps(attr_query_dict)}
                         '''
                     debug.log(__file__, msg)
-                    raise Exception("Duplicated key for final dictionary")
+                    raise Exception("ERROR: Duplicated key for final dictionary")
                 final_dict[pk] = attr_query_dict[k].params[pk]
         return final_dict
 
@@ -3268,12 +3396,12 @@ WHERE
 
         # Handle success situations
         if not unmatched_query_success:
-            msg = f"NOT SUCCESS: {unmatched_query_success}"
+            msg = f"NOT SUCCESS for doing unmatched query: {unmatched_query_success}"
             debug.log(__file__, msg)
             tskm.emit_status(msg, print_also=gl_d)
             return
         elif not unmatched_query_results:
-            msg = f"NOT SUCCESS: {unmatched_query_success}"
+            msg = f"NOT SUCCESS because got no query results, claimed query success was: {unmatched_query_success}"
             debug.log(__file__, msg)
             tskm.emit_status(msg,  print_also=gl_d)
             return
@@ -3346,7 +3474,7 @@ WHERE
 
             # Handle success situations
             if not match_success:
-                msg = f"NOT MATCH SUCCESS! {match_success}"
+                msg = f"ERROR: NOT MATCH SUCCESS! {match_success}"
                 debug.log(__file__, msg)
                 tskm.emit_status(msg, print_also=gl_d)
                 raise Exception(msg)
@@ -3421,7 +3549,7 @@ WHERE
 
         # Make sure this is a legit value to use
         if vec_to_use not in enums.get_enum_vals('vec_type_class'):
-            msg = 'Unknown vec type!'
+            msg = 'ERROR: Unknown vec type!'
             tskm.emit_status(msg, print_also=gl_d)
             debug.log(__file__, msg)
             raise Exception(msg)

@@ -113,7 +113,8 @@ class llmer:
     def check_changed(self):
         """Check if the hash of the object state has changed."""
         if self._baseline != self._make_baseline():
-            msg = "Error: he baseline properties of this llmer object have been modified."
+            msg = "ERROR: he baseline properties of this llmer object have been modified."
+            debug.log(__file__, msg)
             raise Exception(msg)
 
 
@@ -139,7 +140,8 @@ class llmer:
             replacers = rels_prompt_obj.placeholders.__dict__
             debug.debug("Got placeholders", d=d)
         except Exception as prompt_processing_exception:
-            msg = f"Problem getting prompt or placeholders from rels_prompt_obj -- error was {prompt_processing_exception}"
+            msg = f"ERROR: Problem getting prompt or placeholders from rels_prompt_obj -- error was {prompt_processing_exception}"
+            debug.log(__file__, msg)
             raise Exception(msg)
 
         # Clear prior response stuff
@@ -151,7 +153,9 @@ class llmer:
         for k in llm_replacer_content:
             # Make sure that k is ia key in replacer. If not, something is messed up.
             if k not in replacers:
-                raise Exception(f"Problem: {k} not a prompt replacer placeholder")
+                msg = f"ERROR: Problem: {k} not a prompt replacer placeholder"
+                debug.log(__file__, msg)
+                raise Exception(msg)
             # Replacers tells us the string to find and replace, as they map from the
             # element to replace to the string representing that element inside the prompt.
             str_to_replace = replacers[k]
@@ -182,14 +186,16 @@ class llmer:
         while try_counter < max_tries:
             try_counter += 1
             if try_counter >= max_tries:
-                raise Exception(f"LLM call failed {max_tries} times, last error was {last_error}")
+                msg = f"ERROR: LLM call failed {max_tries} times, last error was {last_error}"
+                debug.log(__file__, msg)
+                raise Exception(msg)
             try:
                 resp_obj = self.llm_obj.get_response(post_processed_prompt, rels_prompt_obj)
                 break
             except Exception as llm_call_try_counter_loop_issue:
                 # Track last error
                 last_error = llm_call_try_counter_loop_issue
-                debug.log(__file__,f"LLM call failed on try {try_counter} with error {llm_call_try_counter_loop_issue}", show_log_msg=True)
+                debug.log(__file__,f"ERROR: LLM call failed on try {try_counter} with error {llm_call_try_counter_loop_issue}", show_log_msg=True)
                 # Sleep for 1 second before any next try
                 time.sleep(1)
         # resp_obj = self.llm_obj.get_response(post_processed_prompt, rels_prompt_obj)
@@ -205,7 +211,7 @@ class llmer:
                     try:
                         # rel_prompt_obj cannot be is_multi_resp if resp_dict is not None
                         if rel_prompt_obj.is_multi_resp:
-                            msg = "Cannot have rel's resp_dict not None and have rel be multi_resp"
+                            msg = "ERROR: Cannot have rel's resp_dict not None and have rel be multi_resp"
                             debug.log(__file__, msg)
                             raise Exception(msg)
                         rel = rel_prompt_obj.rel
@@ -219,7 +225,7 @@ class llmer:
                         try:
                             replacer_k = rel_prompt_obj.resp_dict[k]
                         except Exception as resp_dict_key_exception:
-                            msg = f"""
+                            msg = f"""ERROR: 
 Problem: A rel has a response dictionary but the response is not a response dictionary key.
 Rel: {rel_prompt_obj.rel} 
 Response: {k}
@@ -231,15 +237,15 @@ Response: {k}
                             debug.debug(f"Updating response dictionary key {k} to {replacer_k} for rel {rel_prompt_obj.rel}", d=d)
                             update_dict_key(resp_for_rel, k, replacer_k)
                         except Exception as resp_dict_key_update_exception:
-                            msg = f"Problem updating rel {rel_prompt_obj.rel} response dictionary key {k} to {replacer_k} -- error was {resp_dict_key_update_exception}"
+                            msg = f"ERROR: Problem updating rel {rel_prompt_obj.rel} response dictionary key {k} to {replacer_k} -- error was {resp_dict_key_update_exception}"
                             debug.log(__file__, msg)
                             raise Exception(msg)
                     except Exception as rels_resp_processing_exception:
-                        msg = f"Problem processing rel \"{rel_prompt_obj.rel}\" response -- error was {rels_resp_processing_exception}\n\n Response was {resp_obj.response}"
+                        msg = f"ERROR: Problem processing rel \"{rel_prompt_obj.rel}\" response -- error was {rels_resp_processing_exception}\n\n Response was {resp_obj.response}"
                         debug.log(__file__, msg)
                         raise Exception(msg)
         except Exception as resp_processing_exception:
-            msg = f"Problem processing response into rels -- error was {resp_processing_exception}"
+            msg = f"ERROR: Problem processing response into rels -- error was {resp_processing_exception}"
             debug.log(__file__, msg)
             raise Exception(msg)
 
@@ -298,7 +304,7 @@ def make_llm_obj(llm_config_name:str)->llmer:
     try:
         cfg_map = llc.llm_config_maps.get(llm_config_name)
     except Exception as e:
-        msg = f'"Could not get config map with name {llm_config_name} -- error was {e}'
+        msg = f'"ERROR: Could not get config map with name {llm_config_name} -- error was {e}'
         debug.log(__file__, msg)
         raise Exception('Could not get requested config map for LLM. See log.')
 

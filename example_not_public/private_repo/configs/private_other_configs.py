@@ -58,3 +58,27 @@ sep = '_sep_'
 # Used to sign session ids. Use whatever secure way to do this that is best. Do not assume
 # this is necessarily the best approach.
 app_secret_key = kr.get_password('dv_app_secret_key', 'dv')
+
+# Static URL path
+static_url_path = '/static/'
+
+# Dictionary of WSGI ProxyFix parameters to use (excluding the first parameter that the ProxyFix function
+# usually expects, since that's the app parameter and app_generator.py should apply that automatically.
+wsgi_proxy_fix_params = None
+
+run_configs_dict = {
+    'debug': True
+    , 'port': 5001
+    }
+
+# Each dictionary key below should be a string that may or may not be in the index.html file.
+# All instances of that string will be substituted with the string that is the value of the key.
+# Each dictionary key below should be a string that may or may not be in the index.html file.
+# All instances of that string will be substituted with the string that is the value of the key.
+# Should have keys of:
+# __dv__gateway_login_url__dv__
+# __dv__gateway_logout_url__dv__
+index_html_substitutions_dict = {
+    '__dv__gateway_login_url__dv__': '',
+    '__dv__gateway_logout_url__dv__': ''
+    }

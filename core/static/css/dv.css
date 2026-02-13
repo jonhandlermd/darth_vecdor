@@ -310,14 +310,15 @@
 /* === Accumulator === */
 .accumulator-listbox {
   flex: 1;
-  border: 1px solid #aaa;
   overflow-y: auto;
   overflow-x: auto;       /* enable horizontal scroll */
   white-space: nowrap;    /* prevent wrapping */
   padding: 0.25rem;
   min-height: 10rem;
   max-height: 15rem;
-  background: #fff;
+  background-color: var(--bg-muted);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
 }
 
 .accumulator-option {
@@ -329,11 +330,11 @@
 }
 
 .accumulator-option:hover {
-  background-color: #eef;
+  background-color: rgba(77, 184, 255, 0.12);
 }
 
 .accumulator-option.selected {
-  background-color: #cce;
+  background-color: rgba(77, 184, 255, 0.25);
   font-weight: bold;
 }
 
@@ -369,12 +370,13 @@
 .accumulator-title {
   font-weight: 600;
   font-size: 0.75rem;
-  color: #555;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid #ccc;
-  margin-bottom: 0.5rem;
+  color: var(--text-color);
+  opacity: 0.85;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(77, 184, 255, 0.35);
+  margin-bottom: 0.6rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
 }
 
 

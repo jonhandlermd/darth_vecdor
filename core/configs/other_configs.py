@@ -92,3 +92,21 @@ sep = getattr(ocs, 'sep', '_sep_')
 
 # Secret key for session management, for use in app.py -- FAIL IF NOT SET!
 app_secret_key = ocs.app_secret_key
+
+# Static URL path
+static_url_path = getattr(ocs, 'static_url_path', '/static/')
+
+# Dictionary of WSGI ProxyFix parameters to use (excluding the first parameter that the ProxyFix function
+# usually expects, since that's the app parameter and app_generator.py should apply that automatically.
+wsgi_proxy_fix_params = getattr(ocs, 'wsgi_proxy_fix_params', None)
+
+run_configs_dict = getattr(ocs, 'run_configs_dict', {})
+
+# Each dictionary key below should be a string that may or may not be in the index.html file.
+# All instances of that string will be substituted with the string that is the value of the key.
+# Each dictionary key below should be a string that may or may not be in the index.html file.
+# All instances of that string will be substituted with the string that is the value of the key.
+# Should have keys of:
+# __dv__gateway_login_url__dv__
+# __dv__gateway_logout_url__dv__
+index_html_substitutions_dict = getattr(ocs, 'index_html_substitutions_dict', {})

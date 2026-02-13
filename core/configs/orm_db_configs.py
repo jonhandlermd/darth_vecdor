@@ -21,7 +21,7 @@ odc = pci.bootstrap_import(f"orm_db_configs.py", make_dummy_if_not_exists=True)
 
 # FAIL IF NOT SET -- ALL THESE!
 # Next line -- the underlying string at "odc" should have a format like:
-# postgresql+psycopg2://user:password@host:port/database
+# postgresql+psycopg://user:password@host:port/database
 connection_string = odc.connection_string
 password = odc.password
 default_embedder_meta_src = odc.default_embedder_meta_src
