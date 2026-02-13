@@ -28,28 +28,19 @@ from flask import Blueprint, request
 #### g is a special flask variable that is global to an individual request
 from flask import g
 
-# Other external modules
-import json as json
-from typing import Tuple
-import copy
-
 # This programs modules
+import app_source.public_repo.core.code.request_handlers.endpoint_functions as epf
+import app_source.public_repo.core.code.request_handlers.access_functions as af
 import app_source.public_repo.core.configs.other_configs as oc
 import app_source.public_repo.core.code.utilities.web_request_utils as wru
 import app_source.public_repo.core.code.utilities.task_manager as tskm
 import app_source.public_repo.core.code.utilities.debug as debug
-import app_source.public_repo.core.code.request_handlers.json_to_populator as jtp
 
-from app_source.public_repo.core.code.interactors.db_orm import (
-    enhanced_db_class,
-    populator_orchestrations_class as poc
-
-)
-import app_source.public_repo.core.code.request_handlers.populate_content as rhpc
-import app_source.public_repo.core.configs.orm_db_configs as odc
 import app_source.public_repo.core.code.request_handlers.front_end_list_getter as felg
 import app_source.public_repo.core.code.interactors.support.enums as enums
-from app_source.public_repo.core.code.setup.sql_applier import sql_applier_class as sac
+from app_source.public_repo.core.code.setup.sql_whisperer import sql_whisperer_class as swc
+from app_source.public_repo.core.code.request_handlers.access_objects import access_class as accc
+from app_source.public_repo.core.code.request_handlers.access_functions import endpoint_meta
 
 
 ##############################
@@ -82,7 +73,7 @@ g_d = debug.default_d
 def before_request_func():
 
     # Get request data into g.req_args
-    wru.get_request_data(request)
+    wru.do_pre_fulfill_request_work(endpoints)
 
     # Check status of all running tasks
     d = g_d
@@ -101,6 +92,31 @@ def before_request_func():
 ##############################
 
 
+############################################################
+# ACCESS PRIMER
+#*********** READ THIS! IMPORTANT! *******************#
+# NOTE: Protection is only supplemental to the main protection YOU must provide from the web gateway.
+# Don't trust this protection!
+# This protection TOTALLY TRUSTS the gateway to pass user and roles correctly.
+# Use this functionality AT YOUR OWN RISK!
+#*****************************************************#
+# Anyone can see:
+# @endpoint_meta(access=accc.public())
+#
+# Anyone with any app role at all in this system can see:
+# @endpoint_meta(access=accc.every_known_app_role())
+#
+# Allow list for roles allowed to see, all other known roles denied.
+# @endpoint_meta(access=accc.allow('admin', 'standard_user'))
+
+# Deny list for roles denied access, all other known roles allowed.
+# @endpoint_meta(access=accc.deny('customer'))
+
+# Decorator must come BEFORE (above) the route decorator. E.g.:
+# @endpoint_meta(access=accc.every_known_app_role())
+# @endpoints.route('/cancel_task', methods=['POST'])
+############################################################
+
 ##############################
 ##############################
 # SIMPLE SITE ACCESS WEB REQUESTS
@@ -111,6 +127,7 @@ def before_request_func():
 # BEGIN FUNCTION
 # Get home page
 #######################
+@endpoint_meta(access=accc.public())
 @endpoints.route('/', methods = g_allowed_request_methods)
 def get_home():
 
@@ -118,12 +135,24 @@ def get_home():
     g.do_not_log = True
 
     #### If no data request, return empty home page
-    return wru.get_html('index.html')
+    return wru.get_html_with_replacers_param(filename='index.html', replacers=oc.index_html_substitutions_dict)
 
 
 ############################
 # END FUNCTION
 ############################
+
+
+
+##############################
+##############################
+# ACCESS INFO REQUESTS
+##############################
+#############################
+@endpoint_meta(access=accc.public())
+@endpoints.route('/get_accessible_endpoints', methods=['GET'])
+def get_accessible_endpoints():
+    return wru.concoct_response('', af.allowed_urls_for_blueprint('endpoints'))
 
 
 ##############################
@@ -137,6 +166,7 @@ def get_home():
 # Run requested processing
 #######################
 
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_task_status', methods=['GET'])
 def get_task_status():
     task_id = g.req_args['task_id']
@@ -146,38 +176,46 @@ def get_task_status():
         return wru.concoct_response('ERROR: Invalid task ID', '')
     return wru.concoct_response('', task_status)
 
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/cancel_task', methods=['POST'])
 def cancel_task():
     task_id = g.req_args['task_id']
     if not task_id:
-        return wru.concoct_response('ERROR: Missing task ID', '')
+        msg = 'ERROR: Got request to cancel, but no task ID provided.'
+        debug.log(__file__, msg)
+        return wru.concoct_response(msg, '')
     success = tskm.cancel_task(task_id)
     return wru.concoct_response('',{'cancelled': success})
 
 # ////////// RELS POPULATOR ITEMS //////////////
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_rels_populator_orchestration_names', methods = g_allowed_request_methods)
 def get_rels_populator_orchestration_names():
-    return get_orchestration_names(orchestrator_type='rels_populator')
+    return epf.get_orchestration_names(orchestrator_type='rels_populator')
 
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_rels_populator_orchestration_json', methods = g_allowed_request_methods)
 def get_rel_populator_orchestration_json():
-    return get_orchestration_json(orchestrator_type='rels_populator', orchestrator_name=g.req_args['id'])
+    return epf.get_orchestration_json(orchestrator_type='rels_populator', orchestrator_name=g.req_args['id'])
 
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/populate_rels', methods = g_allowed_request_methods)
 def populate_rels():
-    return launch_trackable_populator('rels_populator', 'populate_rels')
+    return epf.launch_trackable_populator('rels_populator', 'populate_rels')
 
-
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_adjudicator_types', methods = g_allowed_request_methods)
 def get_adjudicator_types():
     results = enums.get_enum_vals('adjudicator_type_class')
     return wru.concoct_response('', results)
 
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_code_selector_types', methods = g_allowed_request_methods)
 def get_code_selector_types():
     results = enums.get_enum_vals('code_selector_type_class')
     return wru.concoct_response('', results)
 
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_beceptivity_src_types', methods = g_allowed_request_methods)
 def get_beceptivity_src_types():
     results = enums.get_enum_vals('beceptivity_src_type_class')
@@ -185,121 +223,138 @@ def get_beceptivity_src_types():
 
 
 #/////////// CUSTOM TABLE POPULATOR ITEMS //////////////
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_custom_table_populator_orchestration_names', methods = g_allowed_request_methods)
 def get_custom_table_populator_orchestration_names():
-    return get_orchestration_names(orchestrator_type='custom_table_populator')
+    return epf.get_orchestration_names(orchestrator_type='custom_table_populator')
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_custom_table_populator_orchestration_json', methods = g_allowed_request_methods)
 def get_custom_table_populator_orchestration_json():
-    return get_orchestration_json(orchestrator_type='custom_table_populator', orchestrator_name=g.req_args['id'])
+    return epf.get_orchestration_json(orchestrator_type='custom_table_populator', orchestrator_name=g.req_args['id'])
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/populate_custom_table', methods = g_allowed_request_methods)
 def populate_custom_table():
-    return launch_trackable_populator('custom_table_populator', 'populate_custom_table')
+    return epf.launch_trackable_populator('custom_table_populator', 'populate_custom_table')
 
 
 # ////////// TERMINOLOGY POPULATOR ITEMS //////////////
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_terminology_populator_orchestration_names', methods = g_allowed_request_methods)
 def get_terminology_populator_orchestration_names():
-    return get_orchestration_names(orchestrator_type='terminology_populator')
+    return epf.get_orchestration_names(orchestrator_type='terminology_populator')
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_terminology_populator_orchestration_json', methods = g_allowed_request_methods)
 def get_terminology_populator_orchestration_json():
-    return get_orchestration_json(orchestrator_type='terminology_populator', orchestrator_name=g.req_args['id'])
+    return epf.get_orchestration_json(orchestrator_type='terminology_populator', orchestrator_name=g.req_args['id'])
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/populate_terminology_from_query', methods = g_allowed_request_methods)
 def populate_terminology():
-    return launch_trackable_populator('terminology_populator', 'populate_terminology')
+    return epf.launch_trackable_populator('terminology_populator', 'populate_terminology')
 
 
 # ////////// CODE SET POPULATOR ITEMS //////////////
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_code_set_populator_orchestration_names', methods = g_allowed_request_methods)
 def get_code_set_populator_orchestration_names():
-    return get_orchestration_names(orchestrator_type='code_set_populator')
+    return epf.get_orchestration_names(orchestrator_type='code_set_populator')
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_code_set_populator_orchestration_json', methods = g_allowed_request_methods)
 def get_code_set_populator_orchestration_json():
-    return get_orchestration_json(orchestrator_type='code_set_populator', orchestrator_name=g.req_args['id'])
+    return epf.get_orchestration_json(orchestrator_type='code_set_populator', orchestrator_name=g.req_args['id'])
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/populate_code_set_from_query', methods = g_allowed_request_methods)
 def populate_code_set():
     debug.debug("Got to populate code set from query", d=g_d)
-    return launch_trackable_populator('code_set_populator', 'populate_code_set')
+    return epf.launch_trackable_populator('code_set_populator', 'populate_code_set')
 
 
 # ////////// CODE SET MATCHER ITEMS //////////////
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_code_matcher_orchestration_names', methods = g_allowed_request_methods)
 def get_code_matcher_orchestration_names():
-    return get_orchestration_names(orchestrator_type='code_set_match_populator')
+    return epf.get_orchestration_names(orchestrator_type='code_set_match_populator')
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_code_matcher_orchestration_json', methods = g_allowed_request_methods)
 def get_code_matcher_orchestration_json():
-    return get_orchestration_json(orchestrator_type='code_set_match_populator', orchestrator_name=g.req_args['id'])
+    return epf.get_orchestration_json(orchestrator_type='code_set_match_populator', orchestrator_name=g.req_args['id'])
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/populate_code_set_matches', methods = g_allowed_request_methods)
 def populate_code_set_matches():
     debug.debug("Got to populate code set matches", d=g_d)
-    return launch_trackable_populator('code_set_match_populator', 'populate_rel_code_matches')
+    return epf.launch_trackable_populator('code_set_match_populator', 'populate_rel_code_matches')
 
 # /////////// QUERY HELPER ITEMS ////////////////
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_embedder_info', methods = g_allowed_request_methods)
 def get_embedder_info():
-    enhanced_db_obj = set_up_db()
+    enhanced_db_obj = epf.set_up_db()
     results = felg.get_embedder_info(enhanced_db_obj=enhanced_db_obj)
     return wru.concoct_response('', results)
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_rp_info', methods = g_allowed_request_methods)
 def get_rp_info():
-    enhanced_db_obj = set_up_db()
+    enhanced_db_obj = epf.set_up_db()
     results = felg.get_rp_info(enhanced_db_obj=enhanced_db_obj)
     return wru.concoct_response('', results)
 
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_rcmp_info', methods = g_allowed_request_methods)
 def get_rcmp_info():
-    enhanced_db_obj = set_up_db()
+    enhanced_db_obj = epf.set_up_db()
     results = felg.get_rcmp_info(enhanced_db_obj=enhanced_db_obj)
     return wru.concoct_response('', results)
 
 
 # ////////// OTHER FRONT END ITEMS //////////////
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_expansion_styles', methods = g_allowed_request_methods)
 def get_expansion_styles():
     results = felg.get_expansion_styles()
     return wru.concoct_response('', results)
 
-
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_code_set_names', methods = g_allowed_request_methods)
 def get_code_set_names():
-    enhanced_db_obj = set_up_db()
+    enhanced_db_obj = epf.set_up_db()
     results = felg.get_code_set_names(enhanced_db_obj=enhanced_db_obj)
     return wru.concoct_response('', results)
 
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_terminology_names', methods = g_allowed_request_methods)
 def get_terminology_names():
-    enhanced_db_obj = set_up_db()
+    enhanced_db_obj = epf.set_up_db()
     results = felg.get_terminology_names(enhanced_db_obj=enhanced_db_obj)
     return wru.concoct_response('', results)
 
-
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_llm_config_names', methods = g_allowed_request_methods)
 def get_llm_config_names():
     results = felg.get_llm_configs()
     return wru.concoct_response('', results)
 
-
+@endpoint_meta(access=accc.allow('admin'))
 @endpoints.route('/get_relationship_populator_ids_and_names', methods = g_allowed_request_methods)
 def get_relationship_populator_ids_and_names():
-    enhanced_db_obj = set_up_db()
+    enhanced_db_obj = epf.set_up_db()
     results = felg.get_relationship_populator_ids_and_names(enhanced_db_obj=enhanced_db_obj)
     return wru.concoct_response('', results)
 
-
+@endpoint_meta(access=accc.allow('admin', 'standard_user'))
 @endpoints.route('/get_rels_of_rel_populator/')
 @endpoints.route('/get_rels_of_rel_populator/<rel_populator>', methods = g_allowed_request_methods)
 def get_rels_of_rel_populator(rel_populator=None):
     if not rel_populator:
         return wru.concoct_response('', [])
-    enhanced_db_obj = set_up_db()
+    enhanced_db_obj = epf.set_up_db()
     results = felg.get_rels_of_rel_populator(enhanced_db_obj=enhanced_db_obj, rel_populator=rel_populator)
     return wru.concoct_response('', results)
 
@@ -308,125 +363,7 @@ def get_rels_of_rel_populator(rel_populator=None):
 # END FUNCTION
 ############################
 
-
-def get_orchestration_names(orchestrator_type:str):
-
-    # Set up variables to connect to DB
-    enhanced_db_obj = set_up_db()
-    results = felg.get_orchestrations(enhanced_db_obj=enhanced_db_obj, orchestrator_type=orchestrator_type)
-    return wru.concoct_response('', results)
-
-
-def get_orchestration_json(orchestrator_type:str, orchestrator_name:str):
-    # Set up variables to connect to DB
-    enhanced_db_obj = set_up_db()
-    results = felg.get_orchestration(enhanced_db_obj=enhanced_db_obj, orchestrator_type=orchestrator_type, orchestrator_name=orchestrator_name)
-    return wru.concoct_response('', results)
-
-
-def launch_trackable_populator(populator_type:str, populator:str):
-    debug.debug(f"Got to launch trackable populator with populator type of: {populator_type}; and populator of: {populator}", d=g_d)
-    #### Check for requirements
-    err = wru.check_reqs(['tjson'])
-    if err:
-        debug.debug("Did not get tjson submitted", d=g_d)
-        return wru.concoct_response(err, '')
-
-    #### Handle differently depending upon if we got inputs as an qrgument or not.
-    try:
-        enhanced_db_obj = set_up_db()
-    except Exception as e:
-        msg = f'ERROR: Could not set up the database connection.'
-        debug.log(__file__, msg)
-        return wru.concoct_response(msg, '')
-    debug.debug("DB is set up", d=g_d)
-    orig_json = 'Unassigned JSON'
-    try:
-        orig_json = g.req_args['tjson']
-        orig_obj = json.loads(orig_json)
-        debug.debug("tjson is loaded as object", d=g_d)
-    except Exception as e:
-        msg = f"Could not parse the JSON you submitted {orig_json}. Got exception {e}"
-        debug.log(__file__, msg)
-        return wru.concoct_response(f'ERROR: {msg}', '')
-
-    try:
-        #### Convert JSON to input dictionary
-        if populator == 'populate_rels':
-            nobj = jtp.json_loaded_obj_to_rel_populator(orig_obj)
-        elif populator == 'populate_custom_table':
-            nobj = jtp.json_loaded_obj_to_custom_table_generator(orig_obj)
-        elif populator == 'populate_code_set':
-            debug.debug("about to load tjson as code set populator", d=g_d)
-            nobj = jtp.json_loaded_obj_to_code_set_populator(orig_obj)
-            debug.debug("loaded tjson as code set populator", d=g_d)
-        elif populator == 'populate_terminology':
-            nobj = jtp.json_loaded_obj_to_terminology_populator(orig_obj)
-        elif populator == 'populate_rel_code_matches':
-            nobj = jtp.json_loaded_obj_to_rel_code_matches_populator(orig_obj)
-        elif populator == 'populate_all_unprocessed_expansion_str_summary_vecs':
-            nobj = jtp.all_unprocessed_expansion_str_summary_vectors_populator()
-
-        else:
-            raise Exception("Unknown 'populator' param")
-    except Exception as e:
-        msg = f'ERROR: Could not convert the JSON to {populator} populator: {orig_json}\n\n GOT ERROR: {e}'
-        debug.log(__file__, msg)
-        return wru.concoct_response(msg, '')
-
-    # If we are only looking at the object, then just return it in printable format.
-    mode = orig_obj.get('mode', "full_run")
-    if mode == "see_obj_only" or mode == "see_obj_and_resp":
-        debug.debug("The prompt object is:\n{ret}", d=g_d)
-        ret = json.dumps(nobj.rels_prompt_obj.prompt, indent=2)
-
-        # We are done if only seeing the object
-        if mode == "see_obj_only":
-            print(ret)
-            return wru.concoct_response('', {'obj': ret})
-
-    save_json = 'Unassigned save JSON'
-    try:
-        # Save these configs
-        debug.debug(f"About to save these configs populator type {populator_type} and name {nobj.name}", d=g_d)
-        # First though, remove test configs if they exist
-        save_obj = copy.deepcopy(orig_obj)
-        if 'test_term' in orig_obj.keys():
-            del save_obj['test_term']
-        save_json = json.dumps(save_obj)
-        poc(enhanced_db_obj=enhanced_db_obj, po_type=populator_type, po_name=nobj.name, po_content=save_json)
-    except Exception as e:
-        msg = f'ERROR: Could not save these configs {save_json}\n\n Error was {e}.'
-        debug.log(__file__, msg)
-        return wru.concoct_response(msg, '')
-
-    try:
-        # add .schema to args_superset_dict because assume we are dealing with a Pydantic BaseModel object
-        debug.debug(f"Launching task to do populator", d=g_d)
-        task_id = tskm.launch_task(
-            task_function=rhpc.do_populator
-            , enhanced_db_obj=enhanced_db_obj
-            , args_superset_dict=vars(nobj)
-        )
-        debug.debug("Task launched!", d=g_d)
-    except Exception as e:
-        msg = f'ERROR: Could not launch task, got exception {e}.'
-        debug.log(__file__, msg)
-        return wru.concoct_response(msg, '')
-
-    # Close the session and exit
-    debug.debug("All done!", d=g_d)
-
-    #### Return response
-    return wru.concoct_response('', {'task_id': task_id})
-
-def set_up_db()->enhanced_db_class:
-    return enhanced_db_class(
-        embedder_meta_src=odc.default_embedder_meta_src,
-        embedder_meta_src_location=odc.default_embedder_meta_src_location
-    )
-
-
-init_enhanced_db_obj = set_up_db()
-sql_applier_obj = sac(init_enhanced_db_obj, dry_run=False)
-sql_applier_obj.run()
+# Always run the SQL whisperer to see if anything needs to be done or could be enhanced.
+init_enhanced_db_obj = epf.set_up_db()
+sql_whisperer_obj = swc(init_enhanced_db_obj, dry_run=False)
+sql_whisperer_obj.run()

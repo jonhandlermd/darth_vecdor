@@ -25,22 +25,28 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
+
+    <!-- BEGIN CONTENT TO BE REPLACED BY endpoint -->
+    <meta name="gateway_login_url" content="__dv__gateway_login_url__dv__">
+    <meta name="gateway_logout_url" content="__dv__gateway_logout_url__dv__">
+    <!-- BEGIN CONTENT TO BE REPLACED BY endpoint -->
+
   <title>Darth Vecdor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!--------- BEGIN SCRIPTS AND CSS ----------->
 
   <!-- PREACT Scripts -->
-  <script src="static/external_js/preact.umd.js" defer></script>
-  <script src="static/external_js/hooks.umd.js" defer></script>
+  <script src="/static/external_js/preact.umd.js" defer></script>
+  <script src="/static/external_js/hooks.umd.js" defer></script>
 
   <!-- DARTH VECDOR SCRIPTS -->
-  <script src="static/js/dv.js" defer></script>
+  <script src="/static/js/dv.js" defer></script>
   <!--script src="static/js/dv_progress.js" defer></script-->
 
   <!-- DARTH VECDOR CSS -->
-  <link rel="stylesheet" href="static/css/dv.css">
-  <link rel="stylesheet" href="static/css/dv_progress.css">
+  <link rel="stylesheet" href="/static/css/dv.css">
+  <link rel="stylesheet" href="/static/css/dv_progress.css">
 
 <!--------- END SCRIPTS AND CSS ----------->
 
@@ -54,7 +60,7 @@
     </div>
   </div>
 </nav>
-  <!--<button class="theme-toggle" onclick="toggleTheme()" style="margin: 1rem;">Toggle Theme</button>-->
+  <button class="theme-toggle" onclick="toggleTheme()" style="margin: 1rem;">Toggle Theme</button>
 <div id="pageLock">
   <div class="container">
     <div id="app" class="form-container"></div>

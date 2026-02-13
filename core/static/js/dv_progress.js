@@ -76,20 +76,29 @@ function pollStatus() {
 }
 
 function cancelTask() {
-  if (!taskId) return;
+  if (!taskId) {
+    alert('JS ERROR: Task cancel requested but no task ID.')
+    return;
+  }
 
-  postWithContext('/cancel_task', { task_id: taskId }).then(data => {
-    if (data.cancelled) {
-      unlockPage();
-      setWaiting(false);
+
+postWithContext('/cancel_task', { task_id: id })
+  .then(data => {
+    if (data?.cancelled) {
       updateStatus("Cancelled!");
+    } else {
+      updateStatus("Cancel request sent, but task not confirmed cancelled.\n" + data, true);
     }
-  }).catch(err => {
+  })
+  .catch(err => {
+    const msg = err?.message || err?.toString() || "Unknown error";
+    updateStatus("Cancel failed: " + msg, true);
+  })
+  .finally(() => {
     unlockPage();
     setWaiting(false);
-    updateStatus("Cancel failed: " + err.message, true);
   });
-}
+
 
 function updateStatus(message, isError = false) {
   const status = document.getElementById('taskStatus');

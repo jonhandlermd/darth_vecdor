@@ -18,6 +18,160 @@
 
 // Javascript for Darth Vecdor
 
+function getMeta(name) {
+  const el = document.querySelector(`meta[name="${name}"]`);
+  return el ? el.content : null;
+} // end function
+
+
+function logout() {
+    try {
+        // Clear all local/session storage for this origin
+        sessionStorage.clear();
+        localStorage.clear();
+
+        var gatewayLogoutUrl = getMeta('gateway_logout_url');
+
+        // Optional: redirect to gateway logout URL if configured
+        if (gatewayLogoutUrl) {
+            try {
+                const url = new URL(gatewayLogoutUrl);
+                window.location.href = url.href;
+            } catch (err) {
+                console.warn("Invalid gateway logout URL:",gatewayLogoutUrl);
+            }
+        } else {
+            // Otherwise, just reload page to reset SPA state
+            //window.location.reload();
+            // Try to close window
+            window.close();
+        }
+    } catch (err) {
+        console.error("Logout failed:", err);
+    }
+} // end function
+
+
+////////////////////////////
+// What are keys in JavaScript config object for pages
+// that identify URLs?
+////////////////////////////
+const URL_KEYS = new Set([
+  "fetchUrl",
+  "optionsUrl",
+  "configListUrl",
+  "configLoadUrl",
+  "submitUrl"
+]);
+
+
+// Some URL endpoints we receive from server may have params after like <value> so need to normalize this.
+function normalizeUrl(url) {
+  return url
+    .replace(/\{[^}]+\}/g, '<*>')  // {value} → <*>
+    .replace(/\/+$/, '');          // trim trailing slash
+}
+
+
+function manage_json_resp(json) {
+    if (!json || typeof json !== 'object') {
+      throw new Error("Invalid JSON");
+    }
+
+    if (json.status?.toLowerCase().startsWith("error")) {
+      throw new Error(json.status);
+    }
+
+    const data = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
+    return data;
+    }
+
+////////////// ***** Determine what the user is allowed to do ***** /////////////////
+async function get_accessible_endpoints() {
+    const res = await fetch("/get_accessible_endpoints");
+    const json = await res.json();
+    const received_accessible_endpoints = manage_json_resp(json);
+    return new Set(received_accessible_endpoints.map(normalizeUrl));
+    }
+
+
+////////////////////////////
+// Extract all URLs we might need
+// to query for content from the server
+// that might be protected. This is from a single object.
+////////////////////////////
+function extractUrlsFromObject(obj) {
+  const urls = [];
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (URL_KEYS.has(key) && typeof value === "string") {
+      var normalized_value = normalizeUrl(value);
+      urls.push(normalized_value);
+    }
+  }
+
+  return urls;
+}
+
+////////////////////////////
+// Extract all URLs we might need
+// to query for content from the server
+// that might be protected. This is from a node
+// that might contain nested objects, and it uses
+// extractUrlsFromObject above.
+////////////////////////////
+function extractUrlsRecursive(node) {
+  let urls = [];
+
+  if (node && typeof node === "object") {
+    urls.push(...extractUrlsFromObject(node));
+
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          urls.push(...extractUrlsRecursive(item));
+        }
+      } else if (typeof value === "object") {
+        urls.push(...extractUrlsRecursive(value));
+      }
+    }
+  }
+
+  return urls;
+}
+
+
+function setMenuVisibility(config, accessible_endpoints) {
+    for (const key in config) {
+        const node = config[key];
+
+        // First, process children recursively (if any)
+        if (node.children && typeof node.children === "object") {
+            setMenuVisibility(node.children, accessible_endpoints);
+        }
+
+        // Collect all URLs for this node
+        // These urls should already be normalized.
+        const urls = extractUrlsRecursive(node);
+
+        // Determine if this node is visible
+        if (urls.length === 0) {
+            // Node has no direct URLs: visible if any child is visible
+            const anyChildVisible = node.children
+                ? Object.values(node.children).some(child => child.visible)
+                : false;
+            node.visible = anyChildVisible || urls.length === 0; // parents with no URLs and no children still visible
+        } else {
+            // Node has URLs: visible if user can access any
+            node.visible = urls.every(url => accessible_endpoints.has(normalizeUrl(url)));
+            // node.visible = urls.some(url => accessible_endpoints.has(normalizeUrl(url)));
+
+        }
+    }
+} // end function
+
+
+
 ///////// START PROGRESS FUNCTIONS ///////
 let taskId = null;
 
@@ -116,7 +270,7 @@ function pollStatus() {
   });
 }
 
-
+/*
 function cancelTask() {
   if (!taskId) return;
 
@@ -132,6 +286,35 @@ function cancelTask() {
     updateStatus("Cancel failed: " + err.message, true);
   });
 }
+*/
+
+function cancelTask() {
+  if (!taskId) {
+    alert('JS ERROR: Task cancel requested but no task ID.');
+    return;
+    }
+
+    postWithContext('/cancel_task', { task_id: taskId })
+      .then(data => {
+        if (data.cancelled) {
+          updateStatus("Cancelled!");
+        } else {
+          var msg = "Cancel request sent, but task not confirmed cancelled.\n" + data;
+          alert(msg);
+          updateStatus(msg, true);
+        }
+      })
+      .catch(err => {
+        const msg = err?.message || err?.toString() || "Unknown error";
+        alert(msg);
+        updateStatus("Cancel failed: " + msg, true);
+      })
+      .finally(() => {
+        unlockPage();
+        setWaiting(false);
+      });
+  }
+
 
 function updateStatus(message, isError = false) {
   const status = document.getElementById('status_textarea');
@@ -146,19 +329,6 @@ function updateStatus(message, isError = false) {
 }
 
 //////// START Helper utilities /////////
-
-function manage_json_resp(json) {
-    if (!json || typeof json !== 'object') {
-      throw new Error("Invalid JSON");
-    }
-
-    if (json.status?.toLowerCase().startsWith("error")) {
-      throw new Error(json.status);
-    }
-
-    const data = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
-    return data
-    }
 
 async function getWithContext(baseUrl, orig_payload = {}) {
   // We JSON stringify the main payload.
@@ -548,13 +718,33 @@ async function postWithContext(url, orig_payload = {}) {
         type: "page",
         parent: "About",
         content: "<B>ASSUME NO SECURITY OR PRIVACY PROTECTION IN THIS SOFTWARE</B><p>This software generally does not contain security or privacy features or even basic security functionality, capabilities, or even necessarily best practices. It is up to you to configure this program for secure and private use (if that is even possible, which it may not be), to protect your URL endpoints, to decide which functions or endpoints to expose and/or enable (if any), and to ensure data, network and transmission, application, and any other security and privacy. None of thie should be assumed present by default (and much of it definitely is not), and if you see or experience anything that appears to involve security or privacy, you should not trust it. Security and privacy are entirely up to you.</p>"
+        },
+
+    "Logout": {
+        type: "action",
+        label: "Logout",
+        onClick: logout // function that handles clearing storage + optional redirect
         }
+
     };
-/////////////////// BEGIN APPLICATION CONFIGURATIONS/CONTENT //////////////////////
+/////////////////// END APPLICATION CONFIGURATIONS/CONTENT //////////////////////
+
+
+/////////////////// BEGIN MUTATING CONFIG PROGRAMMTICALLY /////////////////////////
+
+/////////////////// END MUTATING CONFIG PROGRAMMTICALLY ///////////////////////////
 
 
 /////////////////// BEGIN FUNCTIONS FOR THE PAGE NOT SPECIFICALLY RELATED TO THE FORM //////////////////////
-function generateMenu() {
+async function generateMenu() {
+
+  // Get from server what endpoints are accessible
+  const accessible_endpoints = await get_accessible_endpoints();
+
+  // Modify the appConfig to add metadata about which menu items are accessible for the user, per server.
+  // This must happen before building the menu.
+  setMenuVisibility(appConfig, accessible_endpoints);
+
   const menu = document.getElementById('dropdown-menu');
   menu.innerHTML = ''; // Clear old items
 
@@ -568,11 +758,13 @@ function generateMenu() {
   });
 
   // Render top-level items and parents
-  Object.entries(appConfig).forEach(([key, cfg]) => {
+Object.entries(appConfig).forEach(([key, cfg]) => {
+    if (cfg.visible === false) return;
     if (cfg.parent) return; // Skip children here; they'll be rendered below manually
 
     const label = cfg.label || key;
-    const hasChildren = childrenByParent[key] && childrenByParent[key].length > 0;
+    const hasChildren = childrenByParent[key]?.some(childKey => appConfig[childKey]?.visible !== false);
+    if (!hasChildren && cfg.type === 'menu_parent') return;
 
     const parentItem = document.createElement('div');
     parentItem.className = 'menu-item' + (hasChildren ? ' has-children' : '');
@@ -599,7 +791,10 @@ function generateMenu() {
       };
 
       // Render children as siblings, hidden by default
-      childrenByParent[key].forEach(childKey => {
+        childrenByParent[key]
+          .filter(childKey => appConfig[childKey]?.visible !== false)
+          .forEach(childKey => {
+
         const childCfg = appConfig[childKey];
         if (!childCfg) return;
 
@@ -760,6 +955,9 @@ async function renderDynamicPage(config) {
         }
     else if (config.type === "dynamic_page") {
         renderDynamicPage(config);
+        }
+    else if (config.type === 'action') {
+        logout();
         }
     } // END FUNCTION SHOW SECTION
 /////////////////// END FUNCTIONS FOR THE PAGE NOT SPECIFICALLY RELATED TO THE FORM //////////////////////

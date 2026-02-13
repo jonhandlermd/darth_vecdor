@@ -22,7 +22,7 @@ import json
 import re
 from pathlib import Path
 from jinja2 import Template
-from sqlalchemy import Index, MetaData, text, inspect, TextClause, UniqueConstraint, ForeignKeyConstraint, Table
+from sqlalchemy import Index, MetaData, text, inspect, TextClause, UniqueConstraint, ForeignKeyConstraint, Table, select, exists
 from sqlalchemy.dialects import postgresql
 from dataclasses import dataclass
 from typing import Optional
@@ -49,7 +49,7 @@ class table_info_class:
     db_table: Optional[Table]  # Reflected Table object or None if missing
 
 
-class sql_applier_class:
+class sql_whisperer_class:
     def __init__(self, enhanced_db_obj: enhanced_db_class, dry_run=False):
         """
         Initialize the SQL applier with necessary database object.
@@ -110,6 +110,7 @@ class sql_applier_class:
                     model_table=model_table
                     )
                 )
+
 
     @staticmethod
     def index_exists_on_columns(table, columns):
@@ -454,7 +455,8 @@ class sql_applier_class:
         drift_sqls = []
 
         for info in self.table_infos:
-            if self.check_for_attr_and_not_null(info, 'db_table'):
+            # Make sure table at least exists in DB
+            if not self.check_for_attr_and_not_null(info, 'db_table'):
                 continue
 
             # Build a set of existing DB FK signatures
@@ -534,15 +536,153 @@ class sql_applier_class:
 
         return drift_sqls
 
+    def audit_model_nullable_unique_columns(self):
+        """
+        Identify ORM columns that participate in a UniqueConstraint
+        but are nullable in the SQLAlchemy model.
+
+        This is a MODEL QUALITY audit, not DB drift.
+        """
+        problems = {}
+
+        for info in self.table_infos:
+            for constraint in info.model_table.constraints:
+                if not isinstance(constraint, UniqueConstraint):
+                    continue
+
+                for col in constraint.columns:
+                    if col.nullable:
+                        if info.full_name not in problems:
+                            problems[info.full_name] = []
+                        problems[info.full_name].append(col.name)
+
+        return problems
+
+
+    def audit_data_nulls_in_unique_columns(self):
+        """
+        For UNIQUE-participating columns that are nullable in the DB,
+        check whether any NULLs actually exist in the data.
+        """
+        problems = []
+
+        with self.enhanced_db_obj.engine.begin() as conn:
+            for info in self.table_infos:
+                if not self.check_for_attr_and_not_null(info, 'db_table'):
+                    continue
+
+                table = info.db_table
+
+                for constraint in info.model_table.constraints:
+                    if not isinstance(constraint, UniqueConstraint):
+                        continue
+
+                    for col in constraint.columns:
+                        db_col = table.columns.get(col.name)
+                        if db_col is None:
+                            continue
+
+                        # DB already guarantees safety
+                        if not db_col.nullable:
+                            continue
+
+                        stmt = select(
+                            exists().where(db_col.is_(None))
+                        )
+
+                        has_nulls = conn.execute(stmt).scalar()
+
+                        if has_nulls:
+                            problems.append({
+                                "table": info.full_name,
+                                "column": col.name,
+                                "issue": "NULL values exist in UNIQUE constraint column"
+                            })
+
+        return problems
+
+
+    def suggest_set_not_null_for_unique_columns(
+            self,
+            nullable_unique_column_problems: list[dict] | None = None
+    ):
+        """
+        Generate ALTER TABLE statements to align DB nullability
+        with ORM model for UNIQUE constraint columns.
+
+        If nullable_unique_column_problems is provided (from data audit),
+        emit a SQL comment warning when the column currently contains NULLs.
+
+        Args:
+            nullable_unique_column_problems: list of dicts with keys:
+                - table
+                - column
+                - issue
+
+        Returns:
+            List[str]: SQL statements (with optional comments)
+        """
+        alter_sqls = []
+
+        # Normalize problems into a fast lookup set
+        problem_keys = set()
+        if nullable_unique_column_problems:
+            for p in nullable_unique_column_problems:
+                problem_keys.add((p["table"], p["column"]))
+
+        for info in self.table_infos:
+            if not self.check_for_attr_and_not_null(info, 'db_table'):
+                continue
+
+            for constraint in info.model_table.constraints:
+                if not isinstance(constraint, UniqueConstraint):
+                    continue
+
+                for model_col in constraint.columns:
+                    # Only when model requires NOT NULL
+                    if model_col.nullable:
+                        continue
+
+                    db_col = info.db_table.columns.get(model_col.name)
+                    if db_col is None or not db_col.nullable:
+                        continue
+
+                    comment = ""
+                    key = (info.full_name, model_col.name)
+                    if key in problem_keys:
+                        comment = (
+                            "-- WARNING: column contains NULL values; "
+                            "data must be fixed before applying NOT NULL\n"
+                        )
+
+                    sql = (
+                        f"{comment}"
+                        f"ALTER TABLE {info.full_name} "
+                        f"ALTER COLUMN {model_col.name} SET NOT NULL;"
+                    )
+
+                    alter_sqls.append({f"addcol_{info.short_name}_{model_col.name}": sql})
+
+        return alter_sqls
+
+
     def suggest_all_drift_sql(self):
         """
         Unified entry point for all drift suggestions.
         """
+        # See what nulls exist that may be a problem in DB in unique
+        null_db_problems = self.audit_data_nulls_in_unique_columns()
+        if null_db_problems:
+            debug.log(__file__, f"unique_column_null_in_db_problems: {null_db_problems}")
+        val_suggest_set_not_null_for_unique_columns = self.suggest_set_not_null_for_unique_columns(null_db_problems)
+        if val_suggest_set_not_null_for_unique_columns:
+            debug.log(__file__,f"unique_column_null_in_db_problems: NONE")
         return (
                 self.suggest_column_drift_sql()
                 + self.suggest_fk_constraint_drift_sql()
                 + self.suggest_unique_constraint_drift_sql()
-        )
+                + val_suggest_set_not_null_for_unique_columns
+                )
 
 
     def run(self):
@@ -550,6 +690,7 @@ class sql_applier_class:
         Main execution method to run SQL batch processing.
 
         Workflow:
+        -1. Analyze DB ORM and check that all unique constraints are defined as not nullable in models.
         0. Analyze DB ORM and suggest indexes not already present but likely useful.
         1. Validate filenames across all modes.
         2. Ensure exactly one mode folder contains files to process.
@@ -562,6 +703,12 @@ class sql_applier_class:
         """
 
         debug.debug("🟡 Starting sql applier...", d=gl_d)
+
+        # Audit to ensure unique columns are all not nullable.
+        # If any are, then exit and have this fixed.
+        problems = self.audit_model_nullable_unique_columns()
+        if problems:
+            self.log_and_exit(json.dumps(problems, indent=4))
 
         # Suggest indexes
         self.analyze_and_suggest_fk_indexes()

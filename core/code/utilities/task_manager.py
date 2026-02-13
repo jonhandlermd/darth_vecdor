@@ -21,6 +21,7 @@ from threading import Thread, Event
 from contextvars import ContextVar
 import uuid
 import traceback
+import app_source.public_repo.core.code.utilities.debug as debug
 
 _task_context = {}  # task_id → {status, cancel, done}
 _current_task_id = ContextVar("current_task_id", default=None)
@@ -42,15 +43,17 @@ def launch_task(task_function, *args, **kwargs):
             tb = traceback.TracebackException.from_exception(wrapper_exception)
             for frame in tb.stack:
                 print(f"{frame.filename}, line {frame.lineno}, in {frame.name}")
-            print(f"{type(wrapper_exception).__name__}: {wrapper_exception}")
+            debug.log(__file__, f"{type(wrapper_exception).__name__}: {wrapper_exception}")
             emit_status(f"Error from wrapper doing {args}: {wrapper_exception}")
         else:
             emit_status("Completed.")
         finally:
+            debug.debug(f"Got to finally with task ID: {task_id}", d=debug.default_d)
             _task_context[task_id]['done'] = True
             _current_task_id.set(None)
 
     Thread(target=wrapper, name=task_id, daemon=True).start()
+    # Thread(target=wrapper, name=task_id).start()
     return task_id
 
 def emit_status(message, print_also=False):
@@ -94,4 +97,6 @@ def cancel_task(task_id):
         task['cancel'].set()
         task['status'] = "Cancelled."
         return True
-    return False
+    else:
+        debug.log(__file__, f"PROBLEM! From cancel_task with task_id {task_id} set task status to cancelled")
+        return False

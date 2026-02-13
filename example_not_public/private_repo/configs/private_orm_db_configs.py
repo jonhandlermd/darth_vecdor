@@ -26,7 +26,8 @@ _database = 'darth_vecdor'  # reportedly, default in Postgresql is postgres
 _user = kr.get_password('dv_db_username', 'dv')
 password = kr.get_password('dv_db_password', 'dv')
 _double_check_access_credential = kr.get_password('dv_db_double_checkaccess_credential', 'dv')
-connection_string = f"postgresql+psycopg2://{_user}:{password}@{_host}:{_port}/{_database}"
+# Updated to use pyscopg3 instead of 2 (by removing number)
+connection_string = f"postgresql+psycopg://{_user}:{password}@{_host}:{_port}/{_database}"
 vector_size = 768
 schema = 'dv_objs'
 system_schema = 't_sys'

@@ -133,9 +133,10 @@ class llm_execution_class(llm_execution_base_class):
                     completion_tokens += float(completion.usage.completion_tokens)
 
                 except Exception as e:
-                    msg = f"Failed to get response from LLM.\nError was: {e}"
+                    msg = f"ERROR: Failed to get response from LLM.\nError was: {e}"
+                    debug.log(__file__, msg)
                     print(msg)
-                    raise Exception
+                    raise Exception("ERROR: Failed to get response from LLM.")
 
                 # Check if response is legitimate
                 try:
@@ -150,7 +151,8 @@ class llm_execution_class(llm_execution_base_class):
                     resp_obj.response = response.__dict__
                     keep_asking = 0
                 except Exception as e:
-                    msg = f"Raw response for \n{prompt}\n was:\n{raw_response}\n\nValidation failed with error {e}\nand response of: {resp_obj.response}"
+                    msg = f"ERROR: Raw response for \n{prompt}\n was:\n{raw_response}\n\nValidation failed with error {e}\nand response of: {resp_obj.response}"
+                    debug.log(__file__, msg)
                     print(msg)
 
         # Calculate spend on this request

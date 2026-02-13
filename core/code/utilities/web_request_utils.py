@@ -18,9 +18,10 @@
 ##############################
 # IMPORTS
 ##############################
-import app_source.public_repo.core.configs.file_locations as fl
 import json as json
-from flask import g
+from flask import current_app, g, abort, Blueprint, request
+import app_source.public_repo.core.configs.file_locations as fl
+import app_source.public_repo.core.code.request_handlers.access_functions as af
 
 ##############################
 ##############################
@@ -37,12 +38,28 @@ from flask import g
 # BEGIN FUNCTION
 # Get html
 #######################
-def get_html(filename, **kwargs):
+def get_html(filename, replacers=None, **kwargs):
     with open(fl.html_loc + filename, encoding='utf8') as tf:
         lines = (tf.readlines())
         return_string = "\n".join(lines)
         for kwarg in kwargs:
             return_string.replace("<!--replaceme_" + kwarg + "-->", kwargs[kwarg])
+        return return_string
+#######################
+# END FUNCTION
+#######################
+
+
+#######################
+# BEGIN FUNCTION
+# Get html
+#######################
+def get_html_with_replacers_param(filename, replacers=None, **kwargs):
+    with open(fl.html_loc + filename, encoding='utf8') as tf:
+        lines = (tf.readlines())
+        return_string = "\n".join(lines)
+        for replacer in replacers:
+            return_string = return_string.replace(replacer, replacers[replacer])
         return return_string
 #######################
 # END FUNCTION
@@ -110,7 +127,7 @@ def style_all_nos(val):
 # BEGIN FUNCTION
 # Get request data
 ##########################
-def get_request_data(request):
+def get_request_data():
     req_args = {}
 
     # Include query parameters (?key=value)
@@ -134,6 +151,40 @@ def get_request_data(request):
 ############################
 # End function
 ############################
+
+
+#*************************
+# Do work prior to fulfilling request.
+# 1) Get the request data into a Flask g variable.
+# 2) Get the user and roles from the header and into a Flask g variable.
+# 3) If endpoint doesn't exist, send back a 404 code.
+# IMPORTANT NOTE: Protection is only supplemental to the main protection you must provide from the web gateway.
+# Don't trust this protection!
+# This protection TOTALLY TRUSTS the gateway to pass user and roles correctly.
+# Use this functionality AT YOUR OWN RISK!
+def do_pre_fulfill_request_work(bp:"Blueprint"):
+
+    # Get the request data. This will put the result into g.req_args so that anything with access to Flask's
+    # g variable can get it.
+    get_request_data()
+
+    # At app runtime, the validate_blueprint_endpoints ensures that all my endpoint blueprint
+    # endpoints have the required decorator to check if access is allowed, so don't need to recheck
+    # that here.
+
+    # Put endpoint in the g variable so that logging or auditing has access to it as long
+    # as it has access to Flask's g variable.
+    g.ks_endpoint = request.endpoint
+    # Now, get the endpoint view.
+    g.ks_endpoint_view = current_app.view_functions.get(g.ks_endpoint)
+
+    # This next line should abort the request if it's not allowed.
+    allowed, msg = af.enforce_endpoint_access()
+    if not allowed:
+        abort(403, msg)
+
+    # If you get here then process not aborted earlier and you are done!
+    return
 
 
 ##########################
