@@ -17,13 +17,13 @@
 #  limitations under the License.
 
 import app_source.public_repo.core.code.utilities.private_configs_importer as pci
-ocs = pci.bootstrap_import(f"other_configs.py", make_dummy_if_not_exists=True)
+oc = pci.bootstrap_import(f"other_configs.py", make_dummy_if_not_exists=True)
 
 
 # When storing params passed to a class initilizer or some other function,
 # if the password or API key or other secret is replaced, what should the replacement text be?
 # Like '[_PASSWORD_WAS_HERE_]' or something like that.
-password_replacer = getattr(ocs, 'password_replacer', '[_PASSWORD_WAS_HERE_]')
+password_replacer = getattr(oc, 'password_replacer', '[_PASSWORD_WAS_HERE_]')
 
 #### Example content for my_secrets
 # from app_source.public_repo_content.core.core_codebase.prediction.utility_weighting_class_module import utility_weighting_class as uwc
@@ -58,55 +58,61 @@ password_replacer = getattr(ocs, 'password_replacer', '[_PASSWORD_WAS_HERE_]')
 # table_class = 'styled-table'
 
 #### Debugging on or off (True or False, True is on, False is off)
-d = getattr(ocs, 'd', False)
+d = getattr(oc, 'd', False)
 
 #### Maximum size of logfile in bytes
-max_logfile_bytes = getattr(ocs, 'max_logfile_bytes', 20 * 1024 * 1024) # Default 20 MB
+max_logfile_bytes = getattr(oc, 'max_logfile_bytes', 20 * 1024 * 1024) # Default 20 MB
 
-#### This domain -- change as appropriate
-this_domain = getattr(ocs, 'this_domain', 'http://127.0.0.1:5000')
+# This port
+this_port = getattr(oc, 'this_port', 5000)
+
+#### This domain
+this_domain = getattr(oc, 'this_domain', f'http://127.0.0.1:{str(this_port)}')
 
 #### Print errors unless otherwise specified? -- I think not used.
-default_print_errs = getattr(ocs, 'default_print_errs', 'False')
+default_print_errs = getattr(oc, 'default_print_errs', 'False')
 
 #### Write debugging info to log if debugging is on unless otherwise specified?
-default_log_debugging = getattr(ocs, 'default_log_debugging', True)
+default_log_debugging = getattr(oc, 'default_log_debugging', True)
 
 #### Show log messages on stdout unless otherwise specified?
-default_show_log_msgs = getattr(ocs, 'default_show_log_msgs', False)
+default_show_log_msgs = getattr(oc, 'default_show_log_msgs', False)
 
 #### Show progress in stdout unless otherwise specified?
-default_show_progress = getattr(ocs, 'default_show_progress', False)
+default_show_progress = getattr(oc, 'default_show_progress', False)
 
 #### Include progress info in logging unless otherwise specified?
-default_log_progress = getattr(ocs, 'default_log_progress', False)
+default_log_progress = getattr(oc, 'default_log_progress', False)
 
 #### When replacing content in HTML and formatting as table, what style should it use
-table_class = getattr(ocs, 'table_class', 'styled-table')
+table_class = getattr(oc, 'table_class', 'styled-table')
 
 #### Title of this software to display in UI
-sys_title = getattr(ocs, 'sys_title', 'Darth Vecder')
+sys_title = getattr(oc, 'sys_title', 'Darth Vecder')
 
 # Separator used when stringing together a list of items into a single string.
-sep = getattr(ocs, 'sep', '_sep_')
+sep = getattr(oc, 'sep', '_sep_')
 
 # Secret key for session management, for use in app.py -- FAIL IF NOT SET!
-app_secret_key = ocs.app_secret_key
+app_secret_key = oc.app_secret_key
 
 # Static URL path
-static_url_path = getattr(ocs, 'static_url_path', '/static/')
+static_url_path = getattr(oc, 'static_url_path', '/static')
 
 # Dictionary of WSGI ProxyFix parameters to use (excluding the first parameter that the ProxyFix function
 # usually expects, since that's the app parameter and app_generator.py should apply that automatically.
-wsgi_proxy_fix_params = getattr(ocs, 'wsgi_proxy_fix_params', None)
+wsgi_proxy_fix_params = getattr(oc, 'wsgi_proxy_fix_params', None)
 
-run_configs_dict = getattr(ocs, 'run_configs_dict', {})
+run_configs_dict = getattr(oc, 'run_configs_dict', {})
 
 # Each dictionary key below should be a string that may or may not be in the index.html file.
 # All instances of that string will be substituted with the string that is the value of the key.
 # Each dictionary key below should be a string that may or may not be in the index.html file.
 # All instances of that string will be substituted with the string that is the value of the key.
-# Should have keys of:
-# __dv__gateway_login_url__dv__
-# __dv__gateway_logout_url__dv__
-index_html_substitutions_dict = getattr(ocs, 'index_html_substitutions_dict', {})
+# May have keys like:
+# __ks__gateway_login_url__ks__
+# __ks__gateway_logout_url__ks__
+# I put this here instead of access configs because, going forward, not all such substitutions
+# may necessarily be related to gateway or access, and I don't think optimal to recode the
+# function that gets and processes the index file every time.
+index_html_substitutions_dict = getattr(oc, 'index_html_substitutions_dict', {})

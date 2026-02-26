@@ -38,7 +38,7 @@ import app_source.public_repo.core.code.request_handlers.access_functions as af
 # BEGIN FUNCTION
 # Get html
 #######################
-def get_html(filename, replacers=None, **kwargs):
+def get_html(filename, **kwargs):
     with open(fl.html_loc + filename, encoding='utf8') as tf:
         lines = (tf.readlines())
         return_string = "\n".join(lines)

@@ -28,8 +28,11 @@ max_logfile_bytes = 20 * 1024 * 1024 # Default 20 MB
 # is not stored in database. Do NOT put a real password here.
 password_replacer = '[_PASSWORD_WAS_HERE_]'
 
+# This port -- change as appropriate
+this_port = 5001
+
 #### This domain -- change as appropriate
-this_domain = "http://127.0.0.1:5000"
+this_domain = f"http://127.0.0.1:{str(this_port)}"
 
 #### Print errors unless otherwise specified?
 default_print_errs = True
@@ -68,7 +71,7 @@ wsgi_proxy_fix_params = None
 
 run_configs_dict = {
     'debug': True
-    , 'port': 5001
+    , 'port': this_port
     }
 
 # Each dictionary key below should be a string that may or may not be in the index.html file.
@@ -76,9 +79,9 @@ run_configs_dict = {
 # Each dictionary key below should be a string that may or may not be in the index.html file.
 # All instances of that string will be substituted with the string that is the value of the key.
 # Should have keys of:
-# __dv__gateway_login_url__dv__
-# __dv__gateway_logout_url__dv__
+# __ks__gateway_login_url__ks__
+# __ks__gateway_logout_url__ks__
 index_html_substitutions_dict = {
-    '__dv__gateway_login_url__dv__': '',
-    '__dv__gateway_logout_url__dv__': ''
+    '__ks__gateway_login_url__ks__': '',
+    '__ks__gateway_logout_url__ks__': ''
     }

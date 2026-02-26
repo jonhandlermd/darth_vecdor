@@ -72,7 +72,7 @@ def determine_admin_override(app):
     if hasattr(app, 'ks_admin_override_enabled'):
         return
 
-    # Start out assumign the override is false.
+    # Start out assuming the override is false.
     app.ks_admin_override_enabled = False
     if app.config.get('_ks_started_from_name_is_main', False) and ac.offer_run_as_admin:
         print("\n⚠️  RUN IN ADMIN MODE? ⚠️")
