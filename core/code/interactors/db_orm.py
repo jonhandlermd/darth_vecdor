@@ -1648,6 +1648,7 @@ def populate_code_and_strs(code_populators_obj:code_populators_class, str_expans
     # Make sure this object is legit populated.
     if not code_populators_obj:
         msg = 'ERROR: Exception raised! No code populators object.'
+        tskm.emit_status(message=f'{msg}', is_status_only=False)
         debug.log(__file__, msg)
         raise Exception(msg)
 
@@ -1715,6 +1716,7 @@ def populate_expansion_strs(espo:str_expansion_set_populator_class, llm_password
     # Make sure this object is legit populated.
     if not espo:
         msg = 'ERROR: No expansion string object.'
+        tskm.emit_status(message=f'{msg}', is_status_only=False)
         debug.log(__file__, msg)
         raise Exception(msg)
 
@@ -1737,6 +1739,7 @@ def populate_expansion_strs(espo:str_expansion_set_populator_class, llm_password
         else:
             expansion_str_descriptor = 'Something went wrong'
             msg = "ERROR: Got exception. Was query wrong? Something else?"
+            tskm.emit_status(message=f'{msg}', is_status_only=False)
             debug.log(__file__, msg)
             raise Exception(msg)
 
@@ -1811,7 +1814,9 @@ def populate_expansion_strs(espo:str_expansion_set_populator_class, llm_password
                 # Now make/store the expansion set string item
                 esso = str_expansion_set_strs_class(enhanced_db_obj, str_expansion_set_id=seso.id, expansion_str_id=expansion_str_obj.id)
         except Exception as e:
-            msg = f"ERROR: Got exception processing response with llm: {e}"
+            msg = f"ERROR: Got exception processing response with llm"
+            tskm.emit_status(message=f'{msg}', is_status_only=False)
+            log_msg = f"{msg}: {e}"
             debug.log(__file__, msg)
             # print(msg)
             if die_on_llm_failure:
@@ -2114,6 +2119,7 @@ def populate_code_set(csp:code_sets_populator_class):
     success, results = enhanced_db_obj.do_query(csp.query, ())
     if not success:
         msg = f"ERROR: Not success populating code_set, problem with query: {csp.query}"
+        tskm.emit_status(message=f'{msg}', is_status_only=False)
         debug.log(__file__, msg)
         raise Exception
 
@@ -2168,14 +2174,14 @@ def populate_custom_table(enhanced_db_obj:enhanced_db_class, ctg_obj:custom_tabl
     if (ctg_obj.ctg_dest_code_field or ctg_obj.ctg_code_placeholder) and not (ctg_obj.ctg_dest_code_field and ctg_obj.ctg_code_placeholder):
         msg = f"ERROR: FAILED populate_custom_table get codes to process because must either get both or neither of  code placeholder and destination code field -- cannot get only one of those two."
         debug.log(__file__, msg)
-        tskm.emit_status(msg, print_also=gl_d)
+        tskm.emit_status(msg, print_also=gl_d, is_status_only=False)
         raise Exception(msg)
 
     # If we got a ctg_obj.ctg_code_placeholder but do not find it in the query, then error.
     if ctg_obj.ctg_code_placeholder and not ':' + ctg_obj.ctg_code_placeholder in select_query:
         msg = f"ERROR: FAILED populate_custom_table get codes to process because got neither code placeholder nor destination code field -- must get either both or at least code placeholder (if doing batch query)."
         debug.log(__file__, msg)
-        tskm.emit_status(msg, print_also=gl_d)
+        tskm.emit_status(msg, print_also=gl_d, is_status_only=False)
         raise Exception(msg)
 
     # Long and weird subquery names so it's almost certainly unique (not likely found elsewhere in the query)
@@ -2207,7 +2213,7 @@ WHERE 1 = 0
         if not success:
             msg = f"ERROR: FAILED populate_custom_table get codes to process! {success}"
             debug.log(__file__, msg)
-            tskm.emit_status(msg, print_also=gl_d)
+            tskm.emit_status(msg, print_also=gl_d, is_status_only=False)
             raise Exception(msg)
 
     # If we got neither a ctg_dest_code_field nor a ctg_obj.ctg_code_placeholder,
@@ -2366,6 +2372,7 @@ def make_rel_item(enhanced_db_obj:enhanced_db_class, subj_code_id:str, rel:str, 
 
         if not rel or not final_obj_str:
             msg = f"ERROR: Did not get either a rel (got: {rel}) or a final_obj_str (got: {final_obj_str}"
+            tskm.emit_status(message=f'{msg}', is_status_only=False)
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
 
@@ -2376,12 +2383,14 @@ def make_rel_item(enhanced_db_obj:enhanced_db_class, subj_code_id:str, rel:str, 
             )
         if not str_obj or not str_obj.id:
             msg = f"ERROR: Did not get either a str_obj (got: {str_obj}) or a str_obj.id (got: {str_obj.id}"
+            tskm.emit_status(message=f'{msg}', is_status_only=False)
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
         # Make string vector if we don't already have one
         vec_obj = str_vectors_class(enhanced_db_obj=enhanced_db_obj, str_id=str_obj.id)
         if not vec_obj or not vec_obj.id:
             msg = f"ERROR: Did not get either a vec_obj (got: {vec_obj}) or a vec_obj.id (got: {vec_obj.id})"
+            tskm.emit_status(message=f'{msg}', is_status_only=False)
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
         # Now make/store the relationship
@@ -2396,6 +2405,7 @@ def make_rel_item(enhanced_db_obj:enhanced_db_class, subj_code_id:str, rel:str, 
             )
         if not rel_obj or not rel_obj.rel or not rel_obj.id:
             msg = f"ERROR: Did not get either a rel_obj (got: {rel_obj}) or a rel_obj.rel (got: {rel_obj.rel} or a rel_obj.id (got: {rel_obj.id})"
+            tskm.emit_status(message=f'{msg}', is_status_only=False)
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
 
@@ -2414,6 +2424,7 @@ def are_you_sureify(llm_obj:llmc, rels_prompt_obj:rspc, rel_prompt_obj:rpc, subj
     # Need to make sure the needed replacer keys are in the rel prompt object
     if rels_prompt_obj.placeholders.subj_str is None or rels_prompt_obj.placeholders.obj_str is None:
         msg = f'ERROR: {rels_prompt_obj.placeholders.subj_str} and {rels_prompt_obj.placeholders.obj_str} must not be None in the rel_prompt_obj but one or both were None.'
+        tskm.emit_status(message=f'{msg}', is_status_only=False)
         debug.log(__file__, msg)
         raise Exception(msg)
 
@@ -2448,11 +2459,13 @@ def are_you_sureify(llm_obj:llmc, rels_prompt_obj:rspc, rel_prompt_obj:rpc, subj
             debug.debug(llm_obj.last_post_processed_prompt, d=d)
             debug.debug(llm_obj.last_resp, d=d)
         except Exception as e:
-            msg = f"ERROR: Got exception processing are_you sure response with llm: {e}"
+            msg = f"ERROR: Got exception processing are_you sure response with llm"
+            tskm.emit_status(message=f'{msg}', is_status_only=False)
+            log_msg = f"{msg}: {e}"
             debug.log(__file__, msg)
             # print(msg)
             if die_on_llm_failure:
-                raise Exception(f"{msg}, exiting because set to die on llm failure")
+                raise Exception(f"{log_msg}, exiting because set to die on llm failure")
         last_resp = copy.deepcopy(llm_obj.last_resp)
         # Should only get one item, so get it (this is a dictionary, want first key, which is the response)
         are_you_sure_resp = next(iter(last_resp['ays']))
@@ -2525,6 +2538,7 @@ def are_you_sureify(llm_obj:llmc, rels_prompt_obj:rspc, rel_prompt_obj:rpc, subj
     else:
         # Shouldn't get here. If we do, return an error.
         msg = f"ERROR: Got an invalid adjudicator of {rel_prompt_obj.are_you_sure_adjudicator}"
+        tskm.emit_status(message=f'{msg}', is_status_only=False)
         debug.log(__file__, msg)
         raise Exception(msg)
 
@@ -2607,6 +2621,7 @@ def get_beceptivity_from_llm(
     # Should only have one result
     if len(query_results) > 1:
         msg = "ERROR: Got more than one hit for beceptivity of string in beceptivities table."
+        tskm.emit_status(message=f'{msg}', is_status_only=False)
         debug.log(__file__, msg, show_log_msg=True)
         raise Exception(msg)
 
@@ -2630,6 +2645,7 @@ def get_beceptivity_from_llm(
         # Should not have gotten more than 1 resp item
         elif resp_item_count > 1:
             msg = f'ERROR: Got more than one response for beceptivity, which should not have happened.'
+            tskm.emit_status(message=msg, is_status_only=False)
             debug.log(__file__, msg, show_log_msg=True)
             raise Exception(msg)
         # Get here if got exactlu 1
@@ -2649,6 +2665,7 @@ def get_beceptivity_from_llm(
             return float(resp_item)
     except Exception as e:
         msg = f'ERROR: Problem processing llm for beceptivity. Error was: {e}'
+        tskm.emit_status(message=f'ERROR: Problem processing llm for beceptivity.', is_status_only=False)
         debug.log(__file__, msg, show_log_msg=True)
         if die_on_llm_failure:
             raise Exception(f"{msg}, exiting because set to die on llm failure")
@@ -2710,6 +2727,7 @@ Prompt for more beceptive ccontent than the originally returned object string mu
 The placeholder is: 
 {orpo.placeholders.obj_str}'''
             debug.log(__file__, msg)
+            tskm.emit_status(message=msg, is_status_only=False)
             raise Exception(msg)
     # If they did not give us a retry prompt, then make one.
     else:
@@ -2756,7 +2774,7 @@ LLM OBJ LAST RESP: {llm_obj.last_resp}
         debug.log(__file__, msg)
         # print(msg)
         if die_on_llm_failure:
-            tskm.emit_status("ERROR: Exiting because set to die on LLM failure.")
+            tskm.emit_status("ERROR: Exiting get more beceptive content because set to die on LLM failure.", is_status_only=False)
             raise Exception(f"{msg}, exiting because set to die on llm failure")
 
     last_resp = copy.deepcopy(llm_obj.last_resp)
@@ -2787,6 +2805,7 @@ def populate_rels(
         # If not full run, then we are just doing a test term, so get the code for that.
         if not test_term:
             msg = "ERROR: If not doing a full run, then must provide a test term to process."
+            tskm.emit_status(message=msg, is_status_only=False)
             debug.log(msg)
             raise Exception(msg)
         results = test_term.split("\n")
@@ -2814,6 +2833,7 @@ def populate_rels(
 
     # Variable to hold testing info
     ret = ''
+    ret2 = ''
 
     # Loop through each concept
     for idx, result in enumerate(results):
@@ -2873,7 +2893,7 @@ Error message: {initial_response_for_in_proc_str_for_llm}
             debug.log(__file__, msg)
             # print(msg)
             if die_on_llm_failure:
-                tskm.emit_status("Cancelled rels population.")
+                tskm.emit_status(f"Got LLM failure processing response for term {in_proc_str}. See log for more details.", is_status_only=False)
                 raise Exception(f"{msg}, exiting because set to die on llm failure")
 
         # Initialize list of relationships to write
@@ -3154,6 +3174,7 @@ is now:
             else: # testing mode
                 msg = f"(TESTING MODE) {in_proc_str} LLM-identified relationship (sent as JSON): {rel_obj_str}"
                 ret += f"\n{msg}\n"
+                ret2 += f"\n{msg}\n"
                 ret += """
 **************************************************************
 **************************************************************
@@ -3162,7 +3183,25 @@ is now:
                 debug.debug(f"******  Loop finished concept: {in_proc_str} for result index {idx} among result count {len(results)}", d=local_d)
 
     if mode != 'full_run':
-        debug.log(__file__, ret)
+        # This is the actual output.
+        final_output = f'''
+{ret}
+
+=================================
+=================================
+=================================
+SUMMARY
+=================================
+=================================
+=================================
+{ret2}
+
+=================================
+END OF CONTENT!
+=================================
+            '''
+        tskm.emit_status(final_output, print_also=False, is_status_only=False)
+        # debug.log(__file__, ret)
 
     tskm.emit_status(f"DONE processing {lpro.name} using LLM with {lpro.list_length} to process.", print_also=local_d)
 
@@ -3476,7 +3515,7 @@ WHERE
             if not match_success:
                 msg = f"ERROR: NOT MATCH SUCCESS! {match_success}"
                 debug.log(__file__, msg)
-                tskm.emit_status(msg, print_also=gl_d)
+                tskm.emit_status(msg, print_also=gl_d, is_status_only=False)
                 raise Exception(msg)
 
             elif not match_results:
@@ -3550,7 +3589,7 @@ WHERE
         # Make sure this is a legit value to use
         if vec_to_use not in enums.get_enum_vals('vec_type_class'):
             msg = 'ERROR: Unknown vec type!'
-            tskm.emit_status(msg, print_also=gl_d)
+            tskm.emit_status(msg, print_also=gl_d, is_status_only=False)
             debug.log(__file__, msg)
             raise Exception(msg)
         else:

@@ -1,0 +1,28 @@
+/* Button Set Field Type CSS
+ * Add this to your dv.css file
+ */
+
+.button-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;  /* Right-align buttons */
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.button-set button {
+  /* Buttons will wrap to new line if they don't fit */
+  flex-shrink: 0;
+}
+
+/* Optional: Add some visual separation if button_set is in a form */
+.button-set {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color, #ddd);
+}
+
+/* Dark theme support */
+[data-theme="dark"] .button-set {
+  border-top-color: var(--border-color-dark, #444);
+}

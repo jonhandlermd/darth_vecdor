@@ -52,7 +52,7 @@ import app_source.public_repo.core.configs.llm_configs as llm_configs
 _unset = object()
 
 # Print status too?
-print_also = True # debug.default_d
+print_also = debug.default_d
 
 # Debugging on or off?
 g_d =  debug.default_d

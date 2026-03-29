@@ -1,121 +1,468 @@
-
-
-<!--
-  ~ Copyright (c) 2025 Keylog Solutions LLC
-  ~
-  ~ ATTRIBUTION NOTICE: This work was conceived and created by Jonathan A. Handler. Large language model(s) and/or many other resources were used to help create this work. 
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License");
-  ~ you may not use this file except in compliance with the License.
-  ~ You may obtain a copy of the License at
-  ~
-  ~     http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
-  -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-
-    <!-- BEGIN CONTENT TO BE REPLACED BY endpoint -->
-    <meta name="gateway_login_url" content="__ks__gateway_login_url__ks__">
-    <meta name="gateway_logout_url" content="__ks__gateway_logout_url__ks__">
-    <!-- BEGIN CONTENT TO BE REPLACED BY endpoint -->
-
+  
+  <!-- BEGIN CONTENT TO BE REPLACED BY endpoint -->
+  <meta name="gateway_login_url" content="__ks__gateway_login_url__ks__">
+  <meta name="gateway_logout_url" content="__ks__gateway_logout_url__ks__">
+  <!-- END CONTENT TO BE REPLACED BY endpoint -->
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Darth Vecdor</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-<!--------- BEGIN SCRIPTS AND CSS ----------->
-
-  <!-- PREACT Scripts -->
-  <script src="/static/external_js/preact.umd.js" defer></script>
-  <script src="/static/external_js/hooks.umd.js" defer></script>
-
-  <!-- DARTH VECDOR SCRIPTS -->
-  <script src="/static/js/dv.js" defer></script>
-  <!--script src="static/js/dv_progress.js" defer></script-->
-
-  <!-- DARTH VECDOR CSS -->
-  <link rel="stylesheet" href="/static/css/dv.css">
-  <link rel="stylesheet" href="/static/css/dv_progress.css">
-
-<!--------- END SCRIPTS AND CSS ----------->
-
+  
+  <!-- 
+    ============================================================================
+    PATH CONFIGURATION - Change ALL paths here!
+    ============================================================================
+  -->
+  <script>
+    // Base paths - change these to move everything!
+    window.STATIC_BASE = '/static';  // ← Change this to move all static files
+    
+    // Derived paths (automatically update when STATIC_BASE changes)
+    window.JS_BASE_PATH = window.STATIC_BASE + '/js';
+    window.CSS_BASE_PATH = window.STATIC_BASE + '/css';
+    window.EXTERNAL_JS_PATH = window.STATIC_BASE + '/external_js';  // ← Fixed: not /js/external_js
+  </script>
+  
+  <!-- Preact - LOCAL FILES (using configured path) -->
+  <script>
+    document.write(`<script src="${window.EXTERNAL_JS_PATH}/preact.umd.js"><\/script>`);
+    document.write(`<script src="${window.EXTERNAL_JS_PATH}/hooks.umd.js"><\/script>`);
+  </script>
+  
+  <!-- CSS (using configured path) -->
+  <script>
+    document.write(`<link rel="stylesheet" href="${window.CSS_BASE_PATH}/dv.css">`);
+    document.write(`<link rel="stylesheet" href="${window.CSS_BASE_PATH}/dv_progress.css">`);
+  </script>
 </head>
 <body data-theme="dark">
+
+<!-- Navigation -->
 <nav>
-  <div class="nav-title" onclick="navigateSection('#home')">Darth Vecdor</div>
+  <div class="nav-title" onclick="navigateSection('#Home')">Darth Vecdor</div>
   <div class="custom-dropdown">
-    <div id="dropdown-btn" class="dropdown-btn" onclick="toggleDropdown()">Menu ▾</div>
-    <div id="dropdown-menu" class="dropdown-list">
-    </div>
+    <div id="dropdown-btn" class="dropdown-btn" onclick="window.toggle_dropdown()">Menu ▾</div>
+    <div id="dropdown-menu" class="dropdown-list"></div>
   </div>
 </nav>
-  <button class="theme-toggle" onclick="toggleTheme()" style="margin: 1rem;">Toggle Theme</button>
+
+<!-- Theme Toggle -->
+<button class="theme-toggle" onclick="window.toggle_theme()" style="margin: 1rem;">Toggle Theme</button>
+
+<!-- Page Lock with App Container -->
 <div id="pageLock">
   <div class="container">
     <div id="app" class="form-container"></div>
   </div>
 </div>
 
+<!-- Status Area -->
 <div id="status_area">
-    <div class="status_container">
-        <div class="status_header">Task Progress</div>
-        <div class="task_status" id="taskStatus">
-            <TEXTAREA class="status_textarea" id="status_textarea" rows="10" readonly></TEXTAREA>
-        </div>
-        <div class="spinner" id="spinner"></div>
-
-        <div class="buttons">
-            <button id="cancelButton" onclick="cancelTask();">Cancel Task</button>
-            <button id="statusCloseButton">Close</button>
-        </div>
+  <div class="status_container">
+    <div class="status_header">Task Progress</div>
+    <div class="task_status" id="taskStatus">
+      <textarea class="status_textarea" id="status_textarea" rows="10" readonly></textarea>
+    </div>
+    <div class="spinner" id="spinner"></div>
+    <div class="buttons">
+      <button id="cancelButton" onclick="window.cancel_task()">Cancel Task</button>
+      <button id="statusCloseButton">Close</button>
+    </div>
   </div>
 </div>
 
-<!--
-<div id="status_area">
-    <div class="task_status" id="taskStatus">Ready</div>
-            <div class="spinner" id="spinner"></div>
-    <div align="right">
-        <button id="cancelButton" onclick="cancelTask();">Cancel Task</button>
-        <button id="statusCloseButton" >Close</button>
-    </div>
-</div>
--->
-
+<!-- Footer -->
 <footer>
-      <HR>
-<B>*** ALL USE IS ENTIRELY AT YOUR OWN RISK! ***</B>
-    <P><B><I>There are going to be bugs, design flaws, and other problems in this code and system, maybe bad or dangerous ones. LLMs can hallucinate. Logic can be wrong. Semantic vector manipulations and calculations may mislead. Virtually anything you can or cannot imagine could theoretically go wrong. Read the license.</I></B></P>
-    <P><B> ** THIS CODE SHOULD NOT BE CONSIDERED TO INCLUDE SECURITY OR PRIVACY FEATURES OR FUNCTIONS OR TO BE SECURE OR PRIVATE. YOU ARE RESPONSIBLE TO PROVIDE ANY SUCH FUNCTIONALITY OR FEATURES YOU DEEM APPROPRIATE. TO THE EXTENT THAT IT DOES HAVE SUCH FUNCTIONS OR FEATURES, OR APPEARS TO HAVE THEM, YOU ARE ENTIRELY RESPONSIBLE FOR ENSURING THEIR FUNCTIONALITY, SECURITY, PRIVACY, APPROPRIATENESS, AND EVERY OTHER DESIRED AND/OR REQUIRED ATTRIBUTE ABOUT THEM. ** </B></P>
-<P>
-    <BR>Copyright (c) 2025 Keylog Solutions LLC
-<BR>
-<BR>ATTRIBUTION NOTICE: This work was conceived and created by Jonathan A. Handler. Large language model(s) and/or many other resources were used to help create this work.
-<BR>
-<BR>Licensed under the Apache License, Version 2.0 (the "License");
-<BR>you may not use this file except in compliance with the License.
-<BR>You may obtain a copy of the License at
-<BR>
-<BR>http://www.apache.org/licenses/LICENSE-2.0
-<BR>
-<BR>Unless required by applicable law or agreed to in writing, software
-<BR>distributed under the License is distributed on an "AS IS" BASIS,
-<BR>WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-<BR>See the License for the specific language governing permissions and
-<BR>limitations under the License.
-</P>
-      <HR>
-  </footer>
+  <hr>
+  <p><strong>*** ALL USE IS ENTIRELY AT YOUR OWN RISK! ***</strong></p>
+  <p><strong><em>There are going to be bugs, design flaws, and other problems in this code and system, maybe bad or dangerous ones. LLMs can hallucinate. Logic can be wrong. Semantic vector manipulations and calculations may mislead. Virtually anything you can or cannot imagine could theoretically go wrong. Read the license.</em></strong></p>
+  <p><strong>** THIS CODE SHOULD NOT BE CONSIDERED TO INCLUDE SECURITY OR PRIVACY FEATURES OR FUNCTIONS OR TO BE SECURE OR PRIVATE. YOU ARE RESPONSIBLE TO PROVIDE ANY SUCH FUNCTIONALITY OR FEATURES YOU DEEM APPROPRIATE. TO THE EXTENT THAT IT DOES HAVE SUCH FUNCTIONS OR FEATURES, OR APPEARS TO HAVE THEM, YOU ARE ENTIRELY RESPONSIBLE FOR ENSURING THEIR FUNCTIONALITY, SECURITY, PRIVACY, APPROPRIATENESS, AND EVERY OTHER DESIRED AND/OR REQUIRED ATTRIBUTE ABOUT THEM. **</strong></p>
+  <p>
+    Copyright (c) 2025 Keylog Solutions LLC<br>
+    <br>
+    ATTRIBUTION NOTICE: This work was conceived and created by Jonathan A. Handler. Large language model(s) and/or many other resources were used to help create this work.<br>
+    <br>
+    Licensed under the Apache License, Version 2.0 (the "License");<br>
+    you may not use this file except in compliance with the License.<br>
+    You may obtain a copy of the License at<br>
+    <br>
+    http://www.apache.org/licenses/LICENSE-2.0<br>
+    <br>
+    Unless required by applicable law or agreed to in writing, software<br>
+    distributed under the License is distributed on an "AS IS" BASIS,<br>
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<br>
+    See the License for the specific language governing permissions and<br>
+    limitations under the License.
+  </p>
+  <hr>
+</footer>
+
+  <!-- 
+    ============================================================================
+    YOUR APPLICATION - ES6 MODULE WITH DYNAMIC IMPORTS
+    ============================================================================
+  -->
+  <script type="module">
+    // ========================================================================
+    // PATH CONFIGURATION - Already set above!
+    // ========================================================================
+    // window.JS_BASE_PATH is configured in <head>
+    // Change window.STATIC_BASE above to move ALL files at once!
+    
+    const JS_BASE_PATH = window.JS_BASE_PATH;
+    
+    // ========================================================================
+    // DYNAMIC IMPORTS - Using import() function with path variable
+    // ========================================================================
+    Promise.all([
+      import(`${JS_BASE_PATH}/app.js`),
+      import(`${JS_BASE_PATH}/ui/ui_helpers.js`),
+      import(`${JS_BASE_PATH}/ui/navigation.js`),
+      import(`${JS_BASE_PATH}/core/utils.js`),
+      import(`${JS_BASE_PATH}/core/task_manager.js`),
+      import(`${JS_BASE_PATH}/form/form_component.js`)
+    ]).then(([
+      { bootstrap, get_render_table },
+      { toggle_theme },
+      { toggle_dropdown, navigate_section },
+      { logout },
+      { cancel_task },
+      { AppForm }
+    ]) => {
+      
+      // ======================================================================
+      // EXPOSE TO GLOBAL SCOPE (for onclick handlers in HTML)
+      // ======================================================================
+      window.toggle_theme = toggle_theme;
+      window.toggle_dropdown = toggle_dropdown;
+      window.cancel_task = cancel_task;
+      window.navigateSection = navigate_section;  // For nav-title onclick
+      
+      // Expose renderTable for dynamic pages
+      const renderTable = get_render_table();
+      window.renderTable = renderTable;
+      
+      // ======================================================================
+      // YOUR APP CONFIGURATION - COMPLETE!
+      // ======================================================================
+      const app_config = {
+    "Home": {
+        type: "page",
+        content: `
+<h1>Welcome to Darth Vecdor</h1>
+<p><B>Use is entirely at your own risk. Read this entire page, all the way to the bottom, for some of the important caveats, and other critical information.</B></p>
+<p>Darth Vecdor is a platform that does a number of things, especially creating knowledge graphs, using a galaxy of modern semantic vector-based technologies. Darth Vecdor provides force-like control over these complex technologies with a simple graphical user interface, and behind the scenes, powerful APIs.</p>
+<p>Darth Vecdor navigates the secret arts of concept relationships, including:<UL>
+        <LI>Loading in terminologies.</LI>
+        <LI>Creating code subsets (aka code sets).</LI>
+        <LI>Creating one or more vector representations (embeddings) for the strings in the terminologies and/or code subsets.</LI>
+        <LI>Creating summary vectors for terminology or code set codes.</LI>
+        <LI>Creating expansion (synonymous) strings for various strings to potnetially facilitate mapping of strings (e.g., from LLM responses) back to structured codes.</LI>
+        <LI>Storing previously identified relationships.</LI>
+        <LI>Creating relationships (creating or enhancing knowledge graphs) using the knowledge encoded in LLMs by iteratively querying LLMs.</LI>
+        <LI>Potentially enhancing responses from LLMs by requerying ("are you sure") to possibly reduce hallucinations or erroneous repsonses, and requerying when potentially overly general responses are provided to possibly get more specific ("beceptive") and useful responses.</LI>
+        <LI>Mapping strings responses returned by LLMs (or other strings) to codes in a code-set or terminology.</LI>
+        <LI>... and probably more!
+    </UL></p>
+    <I>Note, some functionality above may not yet be implemented.</I>
+<p>It's not just smart — it's semantically savvy. Like Darth Vecdor did, step out of the dark and into the light (of knowledge graphs).</p>
+        `
+    },
+    "Functions": {
+        type: "menu_parent",
+        label: "Functions"
+        },
+    "Terminology Populator": {
+        type: "form",
+        formKey: "terminology_populator",
+        formTitle: "Terminology Populator",
+        parent: "Functions",
+
+        subformTitle: "No Subform",
+        configListUrl: "/get_terminology_populator_orchestration_names",
+        configLoadUrl: "/get_terminology_populator_orchestration_json",
+        submitUrl: "/populate_terminology_from_query",
+        mainFields: [
+            { name: 'base_name', label: 'Name', type: 'text', default: '', help: 'The name you want to give to this populator configuration.' },
+            { name: 'terminology', label: 'Terminology', type: 'text', default: '', help: 'The name of the terminology that holds all these codes.' },
+            { name: 'query', label: 'SQL Query', type: 'textarea', default: 'SELECT the_code AS code, one_of_the_strings_for_the_code AS str, priority FROM the_table WHERE terminology = \'my_terminology\'', help: 'SQL Query to get all the codes and associated strings for the terminology. QUERY MUST RETURN 3 FIELDS: code, str, priority -- in that order. Your terminology may have more than one string per code, just return each such string in a different row.The last field ("priority") denotes the priority ordering of the strings. Most important is to denote one string as the top priority (priority number 1) string, which will be the main string associated with the code. There can be more than one string per code, just return each such string in a different row.' },
+            ]
+        },
+    "Code Set Populator": {
+        type: "form",
+        formKey: "code_set_populator",
+        formTitle: "Code Set Populator",
+        parent: "Functions",
+
+        subformTitle: "No Subform",
+        configListUrl: "/get_code_set_populator_orchestration_names",
+        configLoadUrl: "/get_code_set_populator_orchestration_json",
+        submitUrl: "/populate_code_set_from_query",
+        mainFields: [
+            { name: 'base_name', label: 'Name', type: 'text', default: '', help: 'The name you want to give to this populator configuration.' },
+            { name: 'code_set', label: 'Code Set Name', type: 'text', default: '', help: 'The name you want to give to this code set.' },
+            { name: 'query', label: 'SQL Query', type: 'textarea', default: 'SELECT DISTINCT id AS code_id FROM dv_objs.codes WHERE terminology = \'my_terminology\' AND code IN (SELECT code FROM terminology_source_table WHERE code_type = \'desired_code_type\' )', help: 'Must return a field called code_id that is the set of ids from the codes table in the Darth Vecdor database (e.g., dv_objs.codes) desired for the code set.' },
+            { name: 'expansion_str_style', label: 'Expansion Style', type: 'dropdown', optionsUrl: '/get_expansion_styles', default: '', help: 'Describe the "style" of the expansion strings. This should be one of the styles configured for Darth Vecdor.' },
+            { name: 'expansion_str_style_version', label: 'Expansion Style Version', type: 'text', default: '001', help: 'The version of the expansion string style.' },
+            ]
+        },
+    "Relationship Populator": {
+        type: "form",
+        formKey: "relationship_populator",
+        formTitle: "Relationship Set",
+        parent: "Functions",
+
+        subformTitle: (i, sf) => `Relationship #${i + 1}: ${sf.rel || '(no name)'}`,
+        configListUrl: "/get_rels_populator_orchestration_names",
+        configLoadUrl: "/get_rels_populator_orchestration_json",
+        submitUrl: "/populate_rels",
+
+        mainFields: [
+            {
+                name: 'mode',
+                label: 'Mode',
+                type: 'dropdown',
+                options: [
+                    { label: "1) TESTING: See only prompt and configs", value: "see_obj_only" }
+                    , { label: "2) TESTING: See prompt, configs, and sample response", value: "see_obj_and_resp" }
+                    , { label: "3) FULL RUN", value: "full_run" }
+                    ],
+                default: 'full_processing',
+                help: 'On submit, do what? Options: 1) Just get the resulting configurations and prompt that will get generated, do not actually save data. Results in debug log. 2) Show resulting configurations and prompt, and also show relationships to be generated using the sample term provided elsewhere on this form. Configurations and populators will be saved to the database, but you can make changes to them using this form. Relationship data will not be saved. Expansion strings do not get tested. Results in debug log. 3) Fully process and save all configurations and data as requested.'
+            },
+            { name: 'test_term', label: 'Test term', type: 'textarea', default: '', help: 'If you have chosen option 2 for "Mode" then what item(s) should be used as the subject of the prompt? For multiple, put one item per row.' },
+            { name: 'version', label: 'Version', type: 'text', default: '001', help: 'Enter what you want to use as a version number for this relationship set.' },
+            { name: 'base_name', label: 'Base Name', type: 'text', default: '', help: 'The root or base name of the relationship set.' },
+
+            {
+                name: 'code_selector_type',
+                label: 'Code Selector Type',
+                type: 'dropdown',
+                options: [
+                    { label: "Code Set", value: "code_set" },
+                    { label: "Terminology", value: "terminology" },
+                    { label: "Query", value: "query" }
+                ],
+                default: 'code_set',
+                help: 'What should be used to choose the select the codes for which the relationship(s) will be identified.'
+            },
+            {
+                name: 'code_selector',
+                label: 'Code Selector',
+                dynamicOptions: {
+                    dependsOn: 'code_selector_type',
+                    sources: {
+                        'terminology': { type: 'dropdown', optionsUrl: '/get_terminology_names' },
+                        'code_set': { type: 'dropdown', optionsUrl: '/get_code_set_names' },
+                        'query': { type: 'textarea' }
+                    }
+                },
+                default: '',
+                help: 'The terminology name, code set name, or query to use to get the codes. If you selected "Code Set" as your Code Selector Type above but see no code sets in the dropdown here, then you will have to create and populate one first -- available from the menu at the top right. Simiarly, you will have to populate a terminology if you have not done so already but would like your code selector to use a terminology.'
+            },
+
+            { name: 'llm_config_name', label: 'LLM+LLM configs to use', type: 'dropdown', optionsUrl: '/get_llm_config_names', default: '', help: 'Which LLM and associated configurations should be used? This is the name of an LLM configuration defined on the Darth Vecdor server configs.' },
+            { name: 'rels_case_change', label: 'LLM Response Case Change Mode', type: 'dropdown', options: ['none', 'lower', 'upper'], default: 'lower', help: 'How to change the case of responses from LLM (if at all) prior to storage.' },
+
+            { name: 'beceptivity_src_type', label: 'Beceptivity Source Type (ignored for any relationship with minimum beceptivity unset or set to 0)', type: 'dropdown', options: ['llm_response', 'llm_2nd_response'], default: 'llm_response', help: 'llm_response means the beceptivity of a response will be requested along with the response itself. llm_2nd_response means the beceptivity of each response will be requested in a second query to the LLM. llm_2nd_response is much slower and incurs many more hits to the LLM (one per initial response to go back and obtain a beceptivity value) but alos anecdotally seemed to get better results. YMMV.' },
+
+            { name: 'expansion_str_style', label: 'Expansion Style (Optional)', type: 'dropdown', optionsUrl: '/get_expansion_styles', default: '', help: 'Which "style" of expansion strings should be used? If you do not want expansion strings, just leave this blank. Expansion strings facilitate matching across concepts or to terminology systems by providing alternative words or phraases ("expansion strings") for each response from the LLM -- excluding "no write" responses. This is much more time-consuming, because each returned item will be requeried for its expansion terms, but it can be very helpful for many uses in which strings meaning the same thing but having different terminology or phraseology need to be compared or matched. Theoretically, vector comparisons already do this, but anecdotally it appears that such comparisons may be enhanced with augmented with expansion strings (and associated vectors). In many cases, string expansion may be unnecessary, such as when the returned response is expected to be a magnitude in the form of a number in numerical format.' },
+
+            { name: 'notes', label: 'Notes (Optional)', type: 'textarea', default: '', help: 'Any notes you might like to add about this set, for any reason.' }
+
+        ],
+
+        subformFields: [
+            { name: 'rel', label: 'Relationship Term or Phrase to Be Stored In Database', type: 'text', default: '', help: 'How should I store this relationship in the database? For example, if I am getting the colors of objects, this value might be something like "has color or colors of" (without the quotes).' },
+            { name: 'rel_prompt', label: 'Prompt to Use to Get the Desired Relationship Information for Each Term in the Code Set from the LLM', type: 'textarea', default: '', help: 'Prompt for generating the related data. For example, let us say one of my prompts to the LLM will be asking for expected color or colors of an object. In such a case, you might put (without the quotes) "What are the color or colors of the term at the end of the prompt?" The system will automatically add the term (a member of your code set) to the end of the prompt and provide instructions at the beginning that all of these prompts refer to that term that it will add to the end of the prompt. Therefore, you do not actually have to specify "at the end of the prompt" in each relationship prompt, and (in this example) could simply say something like, "For the term, what color or colors does it have?"' },
+
+            { name: 'is_multi_resp', label: 'Multi-Response? (note: must be false if you have a response dictionary defined below)', type: 'dropdown', options: ['True', 'False'], default: 'True', help: 'Allow the LLM to return multiple values? For example, if you ask for all colors of an object, that would imply an object could have more than one color, therefore teh LLM could return multiple values and you would set this to True. If you ask for the single main color of an object, then you would set this to False.' },
+            { name: 'is_no_write', label: 'No Write?', type: 'dropdown', options: ['True', 'False'], default: 'False', help: 'Whether to skip writing responses to this prompt and for this "relationship" to the LLM. This is intended to serve as an opportunity for the LLM to provide its reasoning for an answer before actually providing an answer in later relationship prompts. Prompts are ordered, so typically you would order a no-write prompt asking the LLM to reason first, then create another prompt asking the LLM for its "final" answer. Why do this? Anecdotal experience and many articles suggest that having the LLM reason first can lead to better responses. As LLMs evolve and automatically do reasoning prior to providing an answer, the need or utility for this no-write functionality may diminish or disappear.' },
+
+            { name: 'resp_dict', label: 'Response Dictionary (note: must be blank if Multi-Response above is set to True)', type: 'textarea', default: '', help: `Optional JSON dict of allowed responses.
+    Example:
+    {
+        "1": "Head",
+        "2": "Shoulders",
+        "3": "Knees",
+        "4": "Toes"
+    }
+    Your prompt needs to specify that the LLM should return one of these values (1, 2, 3, or 4). For example the prompt might say, "What is your favorite body part? Answer 1 if Head, 2 if Shoulders, 3 if Knees, and 4 if Toes." This system will check the response (e.g., "3") against this dictionary and convert the key of the Response Dictionary to the value (e.g., "Knees"). If the response is not in the dictionary, it will be considered an error and will not be written to the database. If you do not want to use a response dictionary, just leave this blank.` },
+
+            { name: 'min_acceptable_beceptivity', label: 'Min Acceptable Beceptivity', type: 'text', default: '0', help: 'Minimum acceptable beceptivity score. Unless set otherwise in configs, Set Beceptivity to 0 if you do not want the system to require each response to have some minimum beceptivity. Unless set otherwise in configs, non-zero beceptivities are integers ranging from 1 - 10, with the LLM being instructed that anything that is a category should get a value less than 7.' },
+            { name: 'get_more_beceptive_content_prompt', label: 'Prompt to Get More Beceptive Content', type: 'textarea', default: '', help: 'Prompt to use to get more beceptive content if any response for this relationship is inadequately beceptive. Ignored if minimum beceptivity is set to 0 for this relationship. If you set a minimum beceptivity above 0 but leave this blank, then a prompt to get more beceptive content will be created for you. If you do enter a prompt here, it MUST CONTAIN the object string placeholder (default, unless otherwise configured, is <<<obj_str>>)' },
+            { name: 'max_beceptivity_loops', label: 'Count of beceptivity loops to do to try to get adequate beceptivity', type: 'text', default: '1', help: 'How many retries to allow to try to get adequately beceptive content? This MUST be over 0 if minimum acceptable beceptivity is greater than zero.' },
+            { name: 'is_assume_adequate_on_max_loop', label: 'Assume adequate beceptivity for any results on final attempt to get more beceptivity?', type: 'dropdown', options: ['True', 'False'], default: 'True', help: 'If False, then will not retain as relationship objects any object strings returned on final beceptivity loop found inadequately beceptive (specific). If True, then all object strings returned on final beceptivity loop will be stored, without further considering beceptivity.'},
+            { name: 'are_you_sure_count', label: 'Are-You-Sure Count', type: 'text', default: '0', help: 'How many retries to allow before adjudication? If 0, then this functionality will not trigger to re-ask the LLM if it is sure of a response.' },
+            { name: 'are_you_sure_adjudicator', label: 'Adjudicator Type (ignored if the Are-You-Sure Count is blank or 0)', type: 'dropdown', options: ['', 'vote', 'avg', 'sum'], default: '', help: 'How to adjudicate disagreement. If the type is "vote" then you will want the Are-You-Sure (AYS) prompt below to ask the LLM to return a 1 if it confirms your prompt, and a 0 if it thinks the proposition is incorrect. The adjudicator will then compare the count of 1 and count of 0 responses to determine a final answer. If you set an AYS count above to an odd number, then the original prompt response will not be used for the voting. If you set the AYS count to an even number, the original prompt response will be used for the voting (a presumed 1 vote). This ensures an odd number of votes, guaranteeing a "winner". avg and sum Adjudiator types mean that your original prompt and this Are-You-Sure prompt all expect a numerical response from the LLM. avg will make the final answer the average of all of its responses, sum will make the final answer the sum of all of its responses. IMPORTANT NOTE: ONLY VOTE HAS HAD ANY TESTING.' },
+            { name: 'are_you_sure_prompt', label: 'Are-You-Sure Prompt (ignored if the Are-You-Sure Count is blank or 0)', type: 'textarea', default: '', help: 'Prompt to use to ask the LLM if it is sure of its response. <<<obj_str>>> in the prompt will be substituted with each item in the response from the LLM. <<<subj_str>>> in the prompt will be substituted with the term from the code set that was submitted with the original prompt. If your Adjudicator Type above is "vote" then you will want the prompt to ask the LLM to return either a 1 if it confirms your prompt, and a 0 if it thinks the proposition is incorrect.  An example might be: Imagine that your relationship prompt was "What color is the term at the end of this prompt?". Your AYS prompt might be something like, "Answer only with a 1 for yes or 0 for no. Provide no explanation or other verbiage. Is it correct that <<<obj_str>>> is the color of <<<subj_str>>>?"' },
+            { name: 'are_you_sure_val_if_error', label: 'Value to Use If Adjudication Fails (ignored if the Are-You-Sure Count is blank or 0)', type: 'text', default: '', help: 'If adjudication fails, what should the adjudication response be? For example, if asked for a vote of 1 or 0, and the prompt(s) fail(s), what should the vote be? 1 or 0?' }
+        ]
+    },
+
+
+    "Relationship String to Code Matcher": {
+        type: "form",
+        formKey: "relationship_string_to_code_matcher",
+        formTitle: "Relationship String to Code Matcher",
+        parent: "Functions",
+
+        subformTitle: "No Subform",
+        configListUrl: "/get_code_matcher_orchestration_names",
+        configLoadUrl: "/get_code_matcher_orchestration_json",
+        submitUrl: "/populate_code_set_matches",
+
+        mainFields: [
+            { name: 'base_name', label: 'Base Name', type: 'text', default: '', help: 'Base name to be used to generate a name for this configuration.' },
+            { name: 'match_from_rel_populator_id', label: 'Original Relationship Populator', type: 'dropdown', optionsUrl: '/get_relationship_populator_ids_and_names', default: '', help: 'The populator object that had been used to generate the relevant relationship strings.' },
+            {
+            name: 'match_from_rel'
+            , label: 'Relationship to Match From'
+            , type: 'dropdown'
+            , dynamicOptions: {
+                dependsOn: 'match_from_rel_populator_id'
+                ,optionsUrlTemplate: '/get_rels_of_rel_populator/{value}'
+                }
+            , default: ''
+            , help: 'The name of the specific relationship to match from.'
+            },
+            { name: 'match_obj_main_str', label: 'Match Using Original Relationship Object String?', type: 'dropdown', options: ['Yes', 'No'], default: 'Yes', help: 'For the object, use the original relationship object string for matching to a code?' },
+            { name: 'match_obj_expansion_summary_vec', label: 'Match Using Object String\'s Summary Vector of all It\'s Expansion Strings?',  type: 'dropdown', options: ['Yes', 'No'], default: 'Yes', help: 'For the object, use the relationship object string\'s expansion strings for matching to a code?' },
+            { name: 'match_code_main_str', label: 'Match Using Code Main String?',  type: 'dropdown', options: ['Yes', 'No'], default: 'Yes', help: 'For the code, use the code\'s main string for matching to a relationship object string?' },
+            { name: 'match_code_other_strs', label: 'Match Using Code\'s Other Strings?',  type: 'dropdown', options: ['Yes', 'No'], default: 'Yes', help: 'For the code, use the code\'s alternative (non-main) strings for matching to a relationship object string?' },
+            { name: 'match_code_summary_vec', label: 'Match Using Code\'s Summary Vector of All It\'s Official Strings?',  type: 'dropdown', options: ['Yes', 'No'], default: 'Yes', help: 'For matching, use the code\'s mean summary vector that is the average of the vectors of its main and alternative (non-main) strings?' },
+            { name: 'match_code_expansion_summary_vec', label: 'Match Using Code Expansion Summary Vector?',  type: 'dropdown', options: ['Yes', 'No'], default: 'Yes', help: 'For matching, use the code\'s mean expansion string summary vector that is the average of the vectors of its main string and its expansion strings?' },
+            { name: 'vec_to_use', label: 'Vector to Use', type: 'dropdown', options: ['cls', 'mean'], default: 'cls', help: 'The vector type to use for matching.' },
+            { name: 'expanion_str_styles', label: 'Expansion Styles', type: 'accumulator', optionsUrl: '/get_expansion_styles', default: '', help: 'If expansion strings will be used for matching, which expansion string styles should be used?' },
+            { name: 'match_to_code_set_name', label: 'Match Relationship Object Into Code Set With Name Of...', type: 'dropdown', optionsUrl: '/get_code_set_names', default: '', help: 'The code set name to match the relationship object string into.' }
+            ]
+        },
+
+    "Custom Table Populator": {
+        type: "form",
+        formKey: "custom_table_populator",
+        formTitle: "Custom Table Populator",
+        parent: "Functions",
+
+        subformTitle: "No Subform",
+        configListUrl: "/get_custom_table_populator_orchestration_names",
+        configLoadUrl: "/get_custom_table_populator_orchestration_json",
+        submitUrl: "/populate_custom_table",
+
+        mainFields: [
+            { name: 'name', label: 'Name', type: 'text', default: '', help: 'The name you want to give to this populator configuration.' },
+            { name: 'ctg_version', label: 'Version', type: 'text', default: '001', help: 'The version you want to give to this populator configuration.' },
+
+            {
+                name: 'ctg_code_selector_type',
+                label: 'Code Selector Type',
+                type: 'dropdown',
+                options: [
+                    { label: "Code Set", value: "code_set" },
+                    { label: "Terminology", value: "terminology" },
+                    { label: "Query", value: "query" }
+                ],
+                default: 'code_set',
+                help: 'What should be used to choose the select the codes for which the custom table will be generated. If you do not enter a code placeholder value and destionation code field below, then the value of this field will be ignored and the query will be run as a batch insert query, not one insert query per code.'
+            },
+            {
+                name: 'ctg_code_selector',
+                label: 'Code Selector',
+                dynamicOptions: {
+                    dependsOn: 'ctg_code_selector_type',
+                    sources: {
+                        'terminology': { type: 'dropdown', optionsUrl: '/get_terminology_names' },
+                        'code_set': { type: 'dropdown', optionsUrl: '/get_code_set_names' },
+                        'query': { type: 'textarea' }
+                    }
+                },
+                default: '',
+                help: 'The terminology name, code set name, or query to use to get the codes. If you selected "Code Set" as your Code Selector Type above but see no code sets in the dropdown here, then you will have to create and populate one first -- available from the menu at the top right. Simiarly, you will have to populate a terminology if you have not done so already but would like your code selector to use a terminology. If you do not enter a code placeholder value and destionation code field below, then the value of this field will be ignored and the query will be run as a batch insert query, not one insert query per code.'
+            },
+
+            { name: 'ctg_dest_table', label: 'Destinaton Schema and Table', type: 'text', default: 'custom_generated_tables.my_custom_table_name', help: 'The destination table (with associated schema) to be populated.' },
+            { name: 'ctg_query', label: 'SQL Query', type: 'textarea', default: 'SELECT codes.code, LENGTH(codes.code) AS code_length, mci.code_importance FROM dv_objs.codes codes INNER JOIN source_schema.more_code_info mci ON codes.code = mci.code WHERE codes.code = :code', help: 'The SELECT query to be used to populate the table. It should contain a parameter placeholder where the terminology code or code set code will be substitued in. That placeholder should start with a colon (as in the example query). You can use any word/term (no spaces or characters other than letters, numbers, and underscore) for your placeholder. You will tell the system what is that placeholder in the Code Placeholder entry below (include the placeholder text without the colon). The system will wrap your select query in a CREATE TABLE IF NOT EXISTS in order to auto-generate the table if it is not already present. However, you may wish to have your own CREATE TABLE IF NOT EXISTS query. You may also wish to do other things, like CREATE INDEX IF NOT EXISTS statmements. If so, put all your setup queries first (create table, create index, etc.), then put your select query last. Separate each query with your configured query separator (default is <dv_query_separator>). Do not end any queries with a semicolon. Do not add another query separator at the end of your last query or before your first one. If you only have the one select query, you do not need a query separator. For populating the table, the system will automatically wrap your select query into an INSERT INTO table query, substituting in each code from your code selector, one at a time, running the query once per code.'},
+            { name: 'ctg_code_placeholder', label: 'Code Placeholder', type: 'text', default: 'code', help: 'Placeholder in your query that will be substituted with each code returned by your code selector (one code per query). Do not include the colon (":") at the beginning. If you leave both Code Placeholder and Destination Code Field blank, the query will be run as a single batch insert, not one insert query per code.' },
+            { name: 'ctg_dest_code_field', label: 'Destination Code Field Name', type: 'text', default: 'code', help: 'In the destionation table to be populated, what is the name of the field that will be populated with the code from the code selector. If you leave both Code Placeholder and Destination Code Field blank, the query will be run as a single batch insert, not one insert query per code.' },
+            ]
+        },
+
+    "Helpful_DB_IDs": {
+        type: "menu_parent",
+        label: 'Helpful Database IDs'
+        },
+
+      "Embedders": {
+            type: "dynamic_page",
+            fetchUrl: "/get_embedder_info",
+            renderFunction: renderTable,
+            parent: "Helpful_DB_IDs",
+            label: "Embedders (Up to 100)"
+          },
+
+      "Relationship Populators": {
+            type: "dynamic_page",
+            fetchUrl: "/get_rp_info",
+            renderFunction: renderTable,
+            parent: "Helpful_DB_IDs",
+            label: "Relationship Populators (Up to 100)"
+          },
+
+      "Relationship String to Code Matcher Populators": {
+            type: "dynamic_page",
+            fetchUrl: "/get_rcmp_info",
+            renderFunction: renderTable,
+            parent: "Helpful_DB_IDs",
+            label: "Relationship String to Code Matcher Populators (Up to 100)"
+          },
+
+    "About": {
+        type: "menu_parent",
+        label: 'About - PLEASE READ'
+        },
+
+    "Contributors": {
+        type: "page",
+        parent: "About",
+        content: "<B>CONTRIBUTORS</B><p>Darth Vecdor was conceived and created by Jonathan A. Handler. Large language models (mostly ChatGPT) and many other resources were used to help create this project. As the owner of this software, Keylog Solutions LLC is proud to offer Darth Vecdor as an open source project -- please see the associated license. This project depends on many brilliant and innovative  technologies (software, hardware, and more) created, implemented, deployed, and managed by many other people. This project is a tribute to all those who have contributed to the underlying math, engineering, technology, and science that made Darth Vecdor possible.</p>"
+        },
+
+    "USE IS AT YOUR OWN RISK - PLEASE READ": {
+        type: "page",
+        parent: "About",
+        content: "<B>USE IS AT YOUR OWN RISK AND THERE ARE NO WARRANTIES OR CONDITIONS OF ANY KIND</B><p>In addition to all the caveats in and elements of the license for use of Darth Vecdor, on these pages, and throughout the codebase, please exercise great care in using Darth Vecdor or any of its outputs. Even if anything communicated in any way by Keylog Solutions LLC or any of the Darth Vecdor contributors, creators, or other associates might seem to imply that it might be used or be useful for medical or healthcare (or for any other purpose), it may in fact NOT be suitable for those purposes or for any other purpose, and may even be dangerous and harmful. Your use of the software is entirely at your own risk. There are VERY IMPORTANT terms of use in the license -- please read them.</p><p>In addition to all other terms in the license, please especially note that  there is a <B><K>Disclaimer of Warranty.</I></B> Unless required by applicable law or agreed to in writing, Licensor provides the Work (and each Contributor provides its Contributions) on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. You are solely responsible for determining the appropriateness of using or redistributing the Work and assume any risks associated with Your exercise of permissions under this License.</p><p>In addition, there is a <B><I>Limitation of Liability</B></I>. In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall any Contributor be liable to You for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising as a result of this License or out of the use or inability to use the Work (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if such Contributor has been advised of the possibility of such damages. There are also other very important terms in the license. Please read it carefully. In addition, please note that Darth Vecdor is a work in progress and is not yet complete. It is being released as an open source project, but it may not be suitable for production use or for any other purpose. Please use it with caution and at your own risk.</p>"
+        },
+    "ASSUME NO SECURITY OR PRIVACY PROTECTION IN THIS SOFTWARE": {
+        type: "page",
+        parent: "About",
+        content: "<B>ASSUME NO SECURITY OR PRIVACY PROTECTION IN THIS SOFTWARE</B><p>This software generally does not contain security or privacy features or even basic security functionality, capabilities, or even necessarily best practices. It is up to you to configure this program for secure and private use (if that is even possible, which it may not be), to protect your URL endpoints, to decide which functions or endpoints to expose and/or enable (if any), and to ensure data, network and transmission, application, and any other security and privacy. None of thie should be assumed present by default (and much of it definitely is not), and if you see or experience anything that appears to involve security or privacy, you should not trust it. Security and privacy are entirely up to you.</p>"
+        },
+
+    "Logout": {
+        type: "action",
+        label: "Logout",
+        onClick: logout
+        }
+
+    };
+      
+      // ======================================================================
+      // INITIALIZE THE APP
+      // ======================================================================
+      bootstrap(preact, preactHooks, app_config, AppForm);
+      
+    }).catch(err => {
+      console.error('Failed to load modules:', err);
+      alert('Failed to load application modules. Check console for details.');
+    });
+    
+  </script>
+
 </body>
 </html>

@@ -242,12 +242,12 @@ class rels_prompt_class:
 
         # Describe response format depending on LLM capability
         if self.can_llm_output_json:
-            prompt += f'''Please provide results as a json dictionary having the following keys and values:\n'''
+            prompt += f'''Please provide results as a json dictionary having ONLY the following keys and values:\n'''
         else:
             prompt += f'''\nFor each requested response, put the response on a single line, and surround the response at the beginning of the line and the end of the line with the characters on the next line:\n{self.llm_str_output_response_surrounder}\n'''
 
         # Finish the start of the prompt
-        prompt += 'My request is:\n'
+        # prompt += 'My request is:\n'
 
         # Now populate the fields
         for idx, rel_obj in enumerate(self.rels):

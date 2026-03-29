@@ -1,5 +1,3 @@
-
-
 #  Copyright (c) 2025 Keylog Solutions LLC
 #
 #  ATTRIBUTION NOTICE: This work was conceived and created by Jonathan A. Handler. Large language model(s) and/or many other resources were used to help create this work.
@@ -23,16 +21,18 @@ import uuid
 import traceback
 import app_source.public_repo.core.code.utilities.debug as debug
 
-_task_context = {}  # task_id → {status, cancel, done}
+_task_context = {}  # task_id → {status, cancel, done, persistent_status}
 _current_task_id = ContextVar("current_task_id", default=None)
 
+
 def launch_task(task_function, *args, **kwargs):
-    task_id = task_function.__name__ + '_' +  str(uuid.uuid4())
+    task_id = task_function.__name__ + '_' + str(uuid.uuid4())
     cancel = Event()
     _task_context[task_id] = {
         'status': 'Pending...',
         'done': False,
-        'cancel': cancel
+        'cancel': cancel,
+        'retained_content': []  # ← Messages with is_status_only=False
     }
 
     def wrapper():
@@ -46,22 +46,43 @@ def launch_task(task_function, *args, **kwargs):
             debug.log(__file__, f"{type(wrapper_exception).__name__}: {wrapper_exception}")
             emit_status(f"Error from wrapper doing {args}: {wrapper_exception}")
         else:
-            emit_status("Completed.")
+            # emit_status("Completed.")
+            # Check if we actually completed vs. were cancelled
+            if is_cancelled():
+                # Cancelled, but finished processing anyway
+                emit_status("Cancellation processed!")
+            else:
+                emit_status("Completed.")
         finally:
             debug.debug(f"Got to finally with task ID: {task_id}", d=debug.default_d)
             _task_context[task_id]['done'] = True
             _current_task_id.set(None)
 
     Thread(target=wrapper, name=task_id, daemon=True).start()
-    # Thread(target=wrapper, name=task_id).start()
     return task_id
 
-def emit_status(message, print_also=False):
+
+def emit_status(message, print_also=False, is_status_only=True):
+    """
+    Emit a status update
+
+    Args:
+        message: The status message
+        is_status_only: If True (default), message is just status and gets replaced
+                       If False, message is retained and shown in final results
+        print_also: If True, also print to console
+    """
     task_id = _current_task_id.get()
     if task_id and task_id in _task_context:
         _task_context[task_id]['status'] = message
+
+        # Store non-status-only messages (retained content)
+        if not is_status_only:
+            _task_context[task_id]['retained_content'].append(message)
+
         if print_also:
             print(f"From task manager emit status: {message}")
+
 
 def print_all_running_threads():
     print("--------------")
@@ -74,22 +95,34 @@ def print_all_running_threads():
         print("NO RUNNING THREADS!")
     print("--------------")
 
+
 def get_cancel_event(task_id=None):
     task_id = task_id or _current_task_id.get()
     return _task_context.get(task_id, {}).get('cancel')
+
 
 def is_cancelled(task_id=None):
     event = get_cancel_event(task_id)
     return event.is_set() if event else False
 
+
 def get_task_status(task_id):
     task = _task_context.get(task_id)
     if not task:
         return None
-    return {
+
+    # Include retained content in response
+    response = {
         'status': task['status'],
         'done': task['done']
     }
+
+    # If there are retained messages, include them
+    if task['retained_content']:
+        response['retained_content'] = task['retained_content']
+
+    return response
+
 
 def cancel_task(task_id):
     task = _task_context.get(task_id)

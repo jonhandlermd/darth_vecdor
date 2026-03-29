@@ -48,6 +48,7 @@
       font-weight: bold;
       color: var(--text-color);
       text-decoration: none;
+      cursor: pointer;
     }
     #nav-select {
       font-weight: bold;
